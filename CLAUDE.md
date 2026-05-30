@@ -10,6 +10,20 @@ Claude is integrated via the Anthropic API for natural language querying, analys
 **Feature files:** `docs/budget-planner.feature`
 **UI mockup reference:** `docs/mockup/` (add after Claude Designer session)
 **Progress log** (updated each session): `docs/progress-log.md`
+**Constitution:** `.specify/memory/constitution.md`
+
+## Spec-Driven Development (Spec Kit)
+
+This project uses [Spec Kit](https://github.com/github/spec-kit) for spec-driven development.
+The principles in this file are mirrored in `.specify/memory/constitution.md` — keep the two in
+sync (amend both together). Per-feature artifacts live under `specs/NNN-*/` (`spec.md` → `plan.md`
+→ `tasks.md`). Drive work with the `/speckit-*` skills: `/speckit-specify`, `/speckit-clarify`,
+`/speckit-plan`, `/speckit-tasks`, `/speckit-analyze`, `/speckit-implement`.
+
+**Note:** Spec Kit normally creates a branch per feature; this project develops on its single
+designated branch instead, so feature specs are added without spawning new branches. The current
+feature is `specs/001-phase-1-data-layer/`; `docs/budget-planner.feature` remains the acceptance
+source of truth and `/phase-1.md` holds the detailed engineering plan.
 
 ---
 
@@ -396,3 +410,8 @@ Use the `/end-session` slash command at the end of each Claude Code session. Thi
 - **SQLite only** — no migrations framework needed at this scale; schema changes handled manually with documented migration steps
 - **Google Drive backup skipped in MVP** — nightly GitHub backup is the sole offsite copy; revisit post-MVP
 - **Tailscale is an infrastructure prerequisite** — not configured or managed by the app
+
+<!-- SPECKIT START -->
+For additional context about technologies to be used, project structure,
+shell commands, and other important information, read the current plan
+<!-- SPECKIT END -->
