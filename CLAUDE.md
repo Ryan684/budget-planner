@@ -328,6 +328,17 @@ This is not optional. A session without a progress log update is incomplete.
 
 ---
 
+## Python Packaging
+
+Use `pyproject.toml` for all Python dependency and tool configuration — no `requirements.txt`. Runtime deps under `[project.dependencies]`, dev/test deps under `[project.optional-dependencies] dev`. Ruff, pytest, mutmut, and httpx all go in the `dev` optional group.
+
+Install for development:
+```bash
+pip install -e ".[dev]"
+```
+
+---
+
 ## Code Standards
 
 - **TypeScript** throughout the frontend — no `any` types

@@ -43,7 +43,7 @@ backend/
 ├── budget.py          # pure calc functions (no DB/FastAPI) — primary mutation target
 ├── carry_forward.py   # preview() + build_carried_items()
 ├── routers/{months,income,bills,accounts,amendments}.py
-├── requirements.txt   # runtime + (dev) pytest, httpx, mutmut
+├── pyproject.toml   # runtime + (dev) pytest, httpx, mutmut
 └── tests/{conftest.py, factories.py, test_*.py}
 ```
 Repo root: `MUTANTS.md` (new), `.gitignore` (data/, .env*), update `docs/progress-log.md`.
@@ -122,8 +122,10 @@ fetch (404) → delegate → return refreshed Read model.
 
 ## Tooling
 
-`requirements.txt`: fastapi, uvicorn[standard], sqlalchemy>=2, pydantic>=2, pydantic-settings,
-python-dotenv; dev: pytest, httpx, mutmut. Mutation testing via **mutmut** —
+`pyproject.toml`: runtime deps (`fastapi`, `uvicorn[standard]`, `sqlalchemy>=2`, `pydantic>=2`,
+`pydantic-settings`, `python-dotenv`) under `[project.dependencies]`; dev deps (`pytest`, `httpx`,
+`mutmut`, `ruff`) under `[project.optional-dependencies] dev`. Install with `pip install -e ".[dev]"`.
+Mutation testing via **mutmut** —
 `paths_to_mutate = budget.py,carry_forward.py,crud.py`, `runner = python -m pytest -x -q`.
 `MUTANTS.md` records any surviving mutant (id, file/line, what mutated, why acceptable) or states
 a full kill. No undocumented survivors (CLAUDE.md).
@@ -131,7 +133,7 @@ a full kill. No undocumented survivors (CLAUDE.md).
 ## Build sequence (respects CLAUDE.md order)
 
 1. **Scaffold** (no logic): config, database, main + `/api/health`, empty logic modules,
-   requirements, `conftest.py`, pytest/mutmut config, `.gitignore`. Confirm pytest collects + app boots.
+   `pyproject.toml`, `conftest.py`, pytest/mutmut config, `.gitignore`. Confirm pytest collects + app boots.
 2. **Models + init_db** — 5 models, tables created.
 3. **Budget calc** — failing `test_budget_calc.py` → `budget.py` → green → mutmut.
 4. **Schemas** — all Create/Update/Read + summaries.
