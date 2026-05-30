@@ -28,10 +28,12 @@ class BudgetMonth(Base):
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
-    income_entries: Mapped[list[IncomeEntry]] = relationship(
+    income_entries: Mapped[list["IncomeEntry"]] = relationship(  # noqa: UP037 (forward ref)
         back_populates="month", cascade="all, delete-orphan"
     )
-    bills: Mapped[list[Bill]] = relationship(back_populates="month", cascade="all, delete-orphan")
+    bills: Mapped[list["Bill"]] = relationship(  # noqa: UP037 (forward ref)
+        back_populates="month", cascade="all, delete-orphan"
+    )
 
 
 class IncomeEntry(Base):
