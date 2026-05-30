@@ -29,10 +29,10 @@ description: "Task list for Phase 1 — Budget Data Layer"
 
 ## Phase 3: User Story 1 — Manage a monthly budget (P1) 🎯 MVP
 
-- [ ] T007 [P] [US1] Write failing `backend/tests/test_budget_calc.py` (income/bills/surplus, negative surplus, empty month).
-- [ ] T008 [US1] Implement pure functions in `backend/budget.py` → tests green.
+- [ ] T007 [P] [US1] Write failing `backend/tests/test_budget_calc.py` (income/bills/surplus, negative surplus, empty month, `total_balances` and `total_savings` over mixed account types).
+- [ ] T008 [US1] Implement all pure calc functions in `backend/budget.py` (`total_income`, `total_bills`, `monthly_surplus`, `total_balances`, `total_savings`) → tests green. Note: `total_balances`/`total_savings` are pure sums over the accounts table and live here so the US1 `/summary` endpoint (T011) has no forward dependency on US3.
 - [ ] T009 [US1] Write failing `backend/tests/test_amendment_logging.py`; implement `backend/crud.py` create/update/delete + logging helper → green.
-- [ ] T010 [US1] Write failing `backend/tests/test_income_api.py` + `test_bills_api.py`; implement `routers/income.py`, `routers/bills.py` (CRUD + 404/422) → green.
+- [ ] T010 [US1] Write failing `backend/tests/test_income_api.py` + `test_bills_api.py`; implement `routers/income.py`, `routers/bills.py` (CRUD; 404 on missing id; 422 on negative `amount` and on `due_date` outside 1–31 per FR-005) → green.
 - [ ] T011 [US1] Implement `routers/months.py` GET/POST/PATCH + `/summary` + `/detail`; write failing `backend/tests/test_months_api.py` first → green.
 - **Checkpoint**: months + income + bills + surplus fully working and independently testable.
 
@@ -44,7 +44,7 @@ description: "Task list for Phase 1 — Budget Data Layer"
 ## Phase 5: User Story 3 — Track real account balances (P2)
 
 - [ ] T014 [P] [US3] Write failing `backend/tests/test_accounts_api.py` (CRUD, multi-account total, savings subtotal, not month-scoped, `active_month_id` on amendments).
-- [ ] T015 [US3] Implement `routers/accounts.py` + `total_savings`/`total_balances` in `budget.py` → green.
+- [ ] T015 [US3] Implement `routers/accounts.py` (CRUD; `total_balances`/`total_savings` already in `budget.py` from T008) → green.
 
 ## Phase 6: User Story 4 — Audit every change (P3)
 
@@ -61,7 +61,8 @@ description: "Task list for Phase 1 — Budget Data Layer"
 - Setup (T001–T004) → Foundational (T005–T006) → Stories (US1–US4).
 - US1 (T007–T011) is the MVP and independently shippable.
 - US2, US3, US4 depend only on Foundational (+ US1's months for month-scoped amendments) and
-  otherwise proceed in priority order.
+  otherwise proceed in priority order. (`total_balances`/`total_savings` are implemented in T008
+  so US1's `/summary` has no forward dependency on US3.)
 - Polish (T017–T019) last.
 
 ## Parallel Example

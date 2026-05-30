@@ -138,7 +138,8 @@ with `source="user"`, the field, and both old and new values.
 ## Success Criteria *(mandatory)*
 
 - **SC-001**: All Phase-1 Gherkin scenarios (Month Management, Income, Bills, Account Balances,
-  Amendments Log, Dashboard calc) pass as automated tests.
+  Amendments Log, and the Dashboard summary figures via the `/summary` endpoint) pass as
+  automated tests. The Dashboard *UI* is out of scope this phase.
 - **SC-002**: Budget figures are mathematically consistent and recomputed from stored data on
   every read.
 - **SC-003**: No undocumented surviving mutants in calculation, carry-forward, or logging code.
