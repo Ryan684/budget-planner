@@ -36,6 +36,17 @@ Implemented via Spec Kit `/speckit-implement` against `specs/001-phase-1-data-la
 
 **Quality gates:** `ruff check .` clean; `ruff format --check .` clean; `pytest` 72/72 green; `mutmut run` 272 mutants / 254 killed / 18 survived — all 18 documented in `MUTANTS.md` (8 equivalent, 10 mutmut-3.x false survivors verified killed by applying the mutation directly).
 
+**Python version:** Targets **3.14** (`requires-python = ">=3.14"`, ruff `py314`), to match the
+`family-dashboard` project / the Pi. This cloud container has no stable 3.14 — only the system
+3.10–3.13 interpreters plus a `uv`-fetchable **3.14.0rc2**. The 72 tests + ruff were run green
+against the source on the system interpreter; an attempt to run them under 3.14.0rc2 hit a
+**Pydantic-vs-RC incompatibility** (Pydantic 2.13.4 calls `typing._eval_type(..., prefer_fwd_module=…)`,
+a kwarg that 3.14.0**rc2** renamed/dropped — its signature is now
+`(…, recursive_guard, format, owner, parent_fwdref)`). This is a release-candidate moving-target
+issue, **not** a defect in our code; released Pydantic wheels match the *stable* 3.14.0 stdlib that
+the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` once on stable
+3.14.0 to confirm before relying on it.
+
 ---
 
 ## Spec Divergences
