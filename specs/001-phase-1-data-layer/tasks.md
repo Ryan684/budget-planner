@@ -4,7 +4,7 @@ description: "Task list for Phase 1 — Budget Data Layer"
 
 # Tasks: Phase 1 — Budget Data Layer
 
-**Input**: Design documents from `/specs/001-phase-1-data-layer/` (+ engineering detail in `/phase-1.md`)
+**Input**: Design documents from `/specs/001-phase-1-data-layer/` (spec.md + plan.md)
 **Prerequisites**: plan.md (required), spec.md (required for user stories)
 
 **Tests**: Included — the constitution mandates TDD (tests written before implementation).
@@ -24,7 +24,7 @@ description: "Task list for Phase 1 — Budget Data Layer"
 
 ## Phase 2: Foundational (blocks all user stories)
 
-- [X] T005 [FOUND] Define the 5 SQLAlchemy models in `backend/models.py` (per `/phase-1.md`); `init_db` creates tables.
+- [X] T005 [FOUND] Define the 5 SQLAlchemy models in `backend/models.py` (per plan.md); `init_db` creates tables.
 - [X] T006 [P] [FOUND] Define Pydantic Create/Update/Read + `BudgetSummary`/`MonthDetail`/`CarryForwardPreview` in `backend/schemas.py`.
 
 ## Phase 3: User Story 1 — Manage a monthly budget (P1) 🎯 MVP

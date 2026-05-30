@@ -8,12 +8,11 @@
 Build a runnable, fully-tested FastAPI + SQLAlchemy backend that persists five tables, exposes
 CRUD for every entity, computes budget totals, handles recurring-only month carry-forward, and
 logs every write to an append-only amendments table. Tests-first, then mutation-tested. The
-exhaustive engineering detail (file-by-file responsibilities, model fields, endpoint table) is
-maintained alongside this plan in `/phase-1.md`.
+file-by-file responsibilities, model fields, and endpoint table are detailed in the sections below.
 
 ## Technical Context
 
-**Language/Version**: Python 3.11+
+**Language/Version**: Python 3.14
 **Primary Dependencies**: FastAPI, SQLAlchemy 2.x, Pydantic v2, pydantic-settings, python-dotenv
 **Storage**: SQLite (local dev file; USB SSD in production)
 **Testing**: pytest + httpx (TestClient); mutmut for mutation testing; ruff for lint/format

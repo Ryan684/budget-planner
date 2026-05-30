@@ -32,7 +32,7 @@ Implemented via Spec Kit `/speckit-implement` against `specs/001-phase-1-data-la
 - `routers/` — `months.py` (CRUD + `/summary` + `/detail` + `/carry-forward-preview` + create-with-carry-forward), `income.py`, `bills.py`, `accounts.py` (CRUD + totals + `active_month_id` stamping), `amendments.py` (read-only per month), `deps.py` (`get_or_404`, `latest_month_id`).
 - `tests/` — `conftest.py` (in-memory SQLite via StaticPool, `db_session`, `client` with `get_db` override), `factories.py`, and 8 test modules. **72 tests, all passing.**
 
-**Repo root:** `MUTANTS.md` (mutation results + survivor justifications); `phase-1.md` (engineering plan, authored earlier).
+**Repo root:** `MUTANTS.md` (mutation results + survivor justifications). The detailed engineering plan lives in `specs/001-phase-1-data-layer/plan.md`.
 
 **Quality gates:** `ruff check .` clean; `ruff format --check .` clean; `pytest` 72/72 green; `mutmut run` 272 mutants / 254 killed / 18 survived — all 18 documented in `MUTANTS.md` (8 equivalent, 10 mutmut-3.x false survivors verified killed by applying the mutation directly).
 

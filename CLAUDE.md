@@ -25,8 +25,7 @@ developed on its own `NNN-short-name` branch (e.g. `002-core-ui`), created by Sp
 `create-new-feature.sh` alongside the matching `specs/NNN-short-name/` artifacts. Work stays on
 that branch and is merged into `main` via a pull request once the feature's quality gates pass —
 one feature = one branch = one PR. `docs/budget-planner.feature` remains the acceptance source of
-truth and `/phase-1.md` holds the detailed engineering plan for the first feature
-(`specs/001-phase-1-data-layer/`).
+truth and each feature's `specs/NNN-*/plan.md` + `tasks.md` hold its detailed engineering plan.
 
 ---
 
