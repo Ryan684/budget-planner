@@ -28,10 +28,10 @@ class BudgetMonth(Base):
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow, nullable=False
     )
 
-    income_entries: Mapped[list["IncomeEntry"]] = relationship(
+    income_entries: Mapped[list[IncomeEntry]] = relationship(
         back_populates="month", cascade="all, delete-orphan"
     )
-    bills: Mapped[list["Bill"]] = relationship(back_populates="month", cascade="all, delete-orphan")
+    bills: Mapped[list[Bill]] = relationship(back_populates="month", cascade="all, delete-orphan")
 
 
 class IncomeEntry(Base):
@@ -45,7 +45,7 @@ class IncomeEntry(Base):
     amount: Mapped[float] = mapped_column(Float, nullable=False)
     is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
-    month: Mapped["BudgetMonth"] = relationship(back_populates="income_entries")
+    month: Mapped[BudgetMonth] = relationship(back_populates="income_entries")
 
 
 class Bill(Base):
@@ -61,7 +61,7 @@ class Bill(Base):
     is_recurring: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
     due_date: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
-    month: Mapped["BudgetMonth"] = relationship(back_populates="bills")
+    month: Mapped[BudgetMonth] = relationship(back_populates="bills")
 
 
 class AccountBalance(Base):
