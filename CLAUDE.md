@@ -20,10 +20,13 @@ sync (amend both together). Per-feature artifacts live under `specs/NNN-*/` (`sp
 → `tasks.md`). Drive work with the `/speckit-*` skills: `/speckit-specify`, `/speckit-clarify`,
 `/speckit-plan`, `/speckit-tasks`, `/speckit-analyze`, `/speckit-implement`.
 
-**Note:** Spec Kit normally creates a branch per feature; this project develops on its single
-designated branch instead, so feature specs are added without spawning new branches. The current
-feature is `specs/001-phase-1-data-layer/`; `docs/budget-planner.feature` remains the acceptance
-source of truth and `/phase-1.md` holds the detailed engineering plan.
+**Branching:** This project follows Spec Kit's branch-per-feature model. Each feature/phase is
+developed on its own `NNN-short-name` branch (e.g. `002-core-ui`), created by Spec Kit's
+`create-new-feature.sh` alongside the matching `specs/NNN-short-name/` artifacts. Work stays on
+that branch and is merged into `main` via a pull request once the feature's quality gates pass —
+one feature = one branch = one PR. `docs/budget-planner.feature` remains the acceptance source of
+truth and `/phase-1.md` holds the detailed engineering plan for the first feature
+(`specs/001-phase-1-data-layer/`).
 
 ---
 
@@ -328,6 +331,8 @@ This is not optional. A session without a progress log update is incomplete.
 
 ## Git
 
+- Develop each feature/phase on its own `NNN-short-name` branch (Spec Kit model); merge to
+  `main` via a pull request once the feature's quality gates pass — one feature, one branch, one PR
 - MUST commit one logical change per commit with a clear message
 - NEVER commit placeholder or TODO code without a corresponding GitHub Issue reference
 - NEVER commit API keys, secrets, or local `.env` files

@@ -1,6 +1,6 @@
 # Implementation Plan: Phase 1 — Budget Data Layer
 
-**Branch**: `claude/budget-planner-plan-M1oXO` | **Date**: 2026-05-30 | **Spec**: `./spec.md`
+**Branch**: `001-phase-1-data-layer` | **Date**: 2026-05-30 | **Spec**: `./spec.md`
 **Input**: Feature specification from `/specs/001-phase-1-data-layer/spec.md`
 
 ## Summary

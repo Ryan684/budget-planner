@@ -1,6 +1,6 @@
 # Feature Specification: Phase 1 — Budget Data Layer
 
-**Feature Branch**: `claude/budget-planner-plan-M1oXO` (Spec Kit per-feature branching disabled to respect the project's single-branch rule)
+**Feature Branch**: `001-phase-1-data-layer` (Spec Kit branch-per-feature model; merged to `main` via PR when quality gates pass)
 **Created**: 2026-05-30
 **Status**: Draft
 **Input**: `docs/budget-planner-spec.md` (Phase 1), `docs/budget-planner.feature`
