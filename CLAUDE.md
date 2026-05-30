@@ -222,10 +222,40 @@ Always use `claude-sonnet-4-6` for the Claude integration. Do not use Opus for r
 
 ---
 
+## Linting
+
+Run **both** linters before considering any code changes complete. Fix all errors and warnings — do not suppress without justification.
+
+### Backend (ruff)
+```bash
+cd backend
+ruff check .          # lint
+ruff format --check . # format check (CI); use `ruff format .` to auto-fix
+```
+
+Config lives in `ruff.toml` at the repo root. Key rules enforced: E/W (pycodestyle), F (pyflakes), I (isort), UP (pyupgrade), B (bugbear).
+
+### Frontend (ESLint + TypeScript)
+```bash
+cd frontend
+npm run lint          # ESLint (configured by Vite scaffold)
+npx tsc --noEmit      # type-check without emitting files
+```
+
+### When to lint
+- After completing any code change, before running tests
+- After fixing a failing test
+- Before every commit
+
+### Lint failures block commits
+A commit with outstanding lint errors is not allowed. Fix the code, not the linter config, unless the rule is genuinely inapplicable — in which case add an inline `# noqa: <code>` / `// eslint-disable-next-line` with a comment explaining why.
+
+---
+
 ## Testing
 
 ### Framework
-Vitest for unit and integration tests.
+pytest for backend unit and API tests. Vitest for frontend tests (Phase 2+).
 
 ### What to test
 - Budget calculation logic (income / bills / monthly surplus)
@@ -254,8 +284,9 @@ The Gherkin scenarios in `docs/budget-planner.feature` are the source of truth f
 2. MUST write failing tests before implementation
 3. MUST write minimum code to pass tests — nothing more
 4. MUST run mutation tests after implementation; MUST NOT leave surviving mutants without documented justification
-5. MUST confirm all tests pass before committing
-6. MUST update `MUTANTS.md` for any surviving mutants that will not be addressed — record the mutant ID, what was mutated, and why it is acceptable
+5. MUST run linters (`ruff check .` for backend, `npm run lint && npx tsc --noEmit` for frontend) and fix all errors before proceeding
+6. MUST confirm all tests pass before committing
+7. MUST update `MUTANTS.md` for any surviving mutants that will not be addressed — record the mutant ID, what was mutated, and why it is acceptable
 
 ---
 
@@ -294,6 +325,17 @@ This is not optional. A session without a progress log update is incomplete.
 - NEVER refactor working code unless explicitly asked
 - NEVER add features outside the current phase scope without asking first
 - NEVER install new npm packages without confirming with the user
+
+---
+
+## Python Packaging
+
+Use `pyproject.toml` for all Python dependency and tool configuration — no `requirements.txt`. Runtime deps under `[project.dependencies]`, dev/test deps under `[project.optional-dependencies] dev`. Ruff, pytest, mutmut, and httpx all go in the `dev` optional group.
+
+Install for development:
+```bash
+pip install -e ".[dev]"
+```
 
 ---
 
