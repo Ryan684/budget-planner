@@ -246,7 +246,7 @@ reason, local timestamp).
 - [ ] T063 Run `npm run lint` and `npx tsc --noEmit` in `frontend/`; fix all errors/warnings (no `any`, no inline styles)
 - [ ] T064 Run `npm run test`; ensure all Phase 2 Gherkin scenarios (Dashboard, Income, Bills, Account Balances, UI-facing Month Management) pass (SC-001)
 - [ ] T065 Run `npm run test:mutation` (StrykerJS over `src/lib/*`); fix or record surviving mutants in repo-root `MUTANTS.md`
-- [ ] T066 [P] Mobile-first pass: verify no horizontal scroll in portrait and touch-target sizing across screens
+- [ ] T066 [P] Mobile-first pass in a **laptop browser at a phone-sized viewport** (DevTools responsive/device mode, e.g. 390×844): verify no horizontal scroll at portrait widths and adequate touch-target sizing across screens — no physical phone / Tailscale needed (deferred post-MVP)
 - [ ] T067 [P] Side-by-side visual review of every screen against `docs/mockup/` (SC-006); reconcile layout/spacing/tones
 - [ ] T068 Run the `specs/002-core-ui/quickstart.md` smoke checklist end-to-end against the live backend
 - [ ] T069 Update `docs/progress-log.md` (Phase 2 ✅, files/functions, and the deferred `account_type`-selector divergence from research.md §8)

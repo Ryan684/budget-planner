@@ -32,18 +32,28 @@ through the Phase 1 REST API.
 `vi.mock`. StrykerJS for mutation testing of pure logic (formatting, date/stale, projected-surplus,
 amendment mapping). ESLint (Vite config) + `npx tsc --noEmit`.
 
-**Target Platform**: Mobile browser (portrait phone first), served on the home network / Tailscale;
-dev on `http://localhost:5173` with Vite proxying `/api` → `http://localhost:8000`.
+**Target Platform**: Web browser, mobile-first (portrait phone layout is the design target).
+**Testing/verification this phase is done on a laptop browser at a phone-sized viewport** (browser
+DevTools responsive/device mode) — physical-phone access over Tailscale is deferred until after MVP,
+so no on-device or LAN-IP/phone testing is required or assumed here. Dev runs on
+`http://localhost:5173` with Vite proxying `/api` → `http://localhost:8000`.
 
 **Project Type**: web — frontend slice this phase (backend delivered in Phase 1).
 
-**Performance Goals**: Surplus readable within ~5s of load on a phone; no horizontal scroll in
-portrait. Single-household scale (2 users, dozens of rows/month) — correctness over throughput.
+**Performance Goals**: Surplus readable within ~5s of load in a laptop browser at a phone-sized
+viewport; no horizontal scroll at portrait widths. Single-household scale (2 users, dozens of
+rows/month) — correctness over throughput.
 
 **Constraints**: No `any`; no inline styles (CSS Modules only); money as `£X,XXX.XX` with negatives
 red + leading minus (never parentheses); timestamps shown in local time; figures always re-fetched
 from the API after a write (never recomputed from stale client state). New npm packages confirmed
 with the user before install.
+
+**Testing environment (this phase)**: All manual/visual verification happens on a **laptop browser**
+at a phone-sized viewport via DevTools responsive/device mode. **Tailscale and physical-phone
+testing are deferred until after MVP** (per CLAUDE.md: "Tailscale is an infrastructure prerequisite
+— not configured or managed by the app"), so no task in this phase requires a phone on the network.
+The mobile-first design intent is unchanged; only the verification device changes.
 
 **Scale/Scope**: ~9 screens/views, ~15 shared components, 5 API resource clients, ~12 functional
 requirements, 6 user stories.

@@ -134,6 +134,22 @@ reads/writes surface a recoverable error state (retry) rather than a blank or st
 **Rationale**: Mirrors the Phase 1 server constraints (amount ≥ 0, due_date 1–31, duplicate-month
 409, not-found 404) so the UI fails fast and never silently shows partial data.
 
+## Decision 10 — Testing device: laptop browser, not a physical phone
+
+**Decision**: All manual/visual verification this phase is done on a **laptop browser at a
+phone-sized viewport** (DevTools responsive/device mode, e.g. 390×844). No task requires a phone on
+the network or a LAN-IP/Tailscale connection.
+
+**Rationale**: Tailscale (the remote/phone access path) is an infrastructure prerequisite that is
+**deferred until after MVP** (CLAUDE.md "Known Constraints & Decisions": "Tailscale is an
+infrastructure prerequisite — not configured or managed by the app"). The product is still
+mobile-first by design; only the verification device changes for the MVP build. Laptop
+DevTools emulation reproduces the portrait phone layout faithfully enough for Phase 2 acceptance.
+
+**Alternatives considered**: Testing on a real phone over the home LAN IP / Tailscale — deferred:
+depends on infrastructure outside this phase's scope and not needed to satisfy the Phase 2 Gherkin.
+Re-evaluate device testing during Phase 5 hardening / the fresh-Pi end-to-end test.
+
 ## Resolved unknowns summary
 
 | Unknown | Resolution |
@@ -148,3 +164,4 @@ reads/writes surface a recoverable error state (retry) rather than a blank or st
 | account_type in UI | Omitted this phase (default "current"); divergence logged |
 | Error handling | Client validation + mapped 422/404/409 + recoverable states |
 | New packages | Confirmed: vitest, RTL trio, jsdom, Stryker core + vitest-runner |
+| Testing device | Laptop browser at a phone-sized viewport (DevTools); Tailscale/phone testing deferred post-MVP |

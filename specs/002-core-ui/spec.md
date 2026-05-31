@@ -300,6 +300,11 @@ The user-facing views are:
 - **SC-006**: The implemented screens match the `docs/mockup/` prototype in layout, navigation
   (bottom tab bar + sub-screens), and component language, as confirmed by side-by-side review.
 
+> SC-003/SC-004 describe the end-user goal on a phone (the product is mobile-first). **For Phase 2,
+> these are verified on a laptop browser at a phone-sized viewport** (DevTools responsive mode);
+> physical-phone testing over Tailscale is deferred until after MVP. See `plan.md` → Technical
+> Context → "Testing environment" and `research.md` Decision 10.
+
 ## Assumptions
 
 - **Built on Phase 1 API**: Phase 2 is a frontend layer over the existing Phase 1 data-layer

@@ -23,8 +23,13 @@ cd frontend
 npm install
 npm run dev        # http://localhost:5173
 ```
-`vite.config.ts` proxies `/api` → `http://localhost:8000` (no CORS config needed). On a phone, open
-`http://<dev-host-ip>:5173`. `VITE_API_BASE_URL` defaults to the relative `/api`.
+`vite.config.ts` proxies `/api` → `http://localhost:8000` (no CORS config needed).
+`VITE_API_BASE_URL` defaults to the relative `/api`.
+
+> **Testing device (this phase): laptop only.** Verify everything in a laptop browser at a
+> phone-sized viewport using DevTools responsive/device mode (e.g. 390×844). **Tailscale and
+> physical-phone testing are deferred until after MVP**, so there is no need to open the app on a
+> phone or over a LAN IP this phase. Mobile-first design is unchanged — only the test device is.
 
 ## 3. Quality gates (run before every commit — constitution II)
 ```bash
@@ -51,7 +56,7 @@ npm run build           # → dist/ (served via static server or FastAPI StaticF
 - ESLint + `tsc --noEmit` clean; mutation gate satisfied (or justified in `MUTANTS.md`).
 - `docs/progress-log.md` updated (incl. the account_type-selector divergence from research.md §8).
 
-## Smoke checklist (manual, on a phone viewport)
+## Smoke checklist (manual — laptop browser at a phone-sized viewport, DevTools responsive mode)
 1. Empty state → create first month.
 2. Add income + bills → dashboard surplus updates; over-budget banner when bills > income.
 3. Add accounts → total updates; a >30-day balance shows the Stale pill.
