@@ -1,0 +1,242 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+/* Hero */
+.hero {
+  background: var(--navy);
+  color: #fff;
+  flex-shrink: 0;
+  padding: 52px 16px 20px;
+  transition: background 0.25s ease;
+}
+
+.heroNegative {
+  background: #7d2b22;
+}
+
+/* Month switcher row */
+.monthSwitcher {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.monthNavBtn {
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+
+.monthNavBtn:active { transform: scale(0.95); }
+.monthNavBtnDisabled { opacity: 0.4; }
+
+.monthLabel {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+
+.monthLabel:active { transform: scale(0.97); }
+
+/* Surplus row */
+.surplusRow {
+  margin-top: 20px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+}
+
+.surplusLabel {
+  font-size: 13.5px;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 500;
+}
+
+.surplusValue {
+  font-size: 40px;
+  font-weight: 700;
+  color: #fff;
+  display: block;
+  margin-top: 2px;
+}
+
+/* Bar row */
+.barSection {
+  margin-top: 16px;
+}
+
+.barLegend {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 9px;
+  font-size: 12.5px;
+  color: rgba(255, 255, 255, 0.66);
+}
+
+.barLegendNum {
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Scroll area */
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: var(--bg);
+}
+
+.scroll::-webkit-scrollbar { display: none; }
+
+.content {
+  padding: 16px 16px 28px;
+}
+
+/* Receipt card */
+.receiptLine {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 9px 0;
+}
+
+.receiptLineLabel {
+  font-size: 14.5px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.receiptLineLabelBig {
+  font-size: 15.5px;
+  font-weight: 700;
+}
+
+.receiptLineLabelMuted {
+  color: var(--ink-2);
+}
+
+.receiptRule {
+  border: none;
+  border-top: 1px solid var(--line);
+  margin: 1px 0;
+}
+
+.receiptRuleDashed {
+  border-top-style: dashed;
+}
+
+.receiptSurplusRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: 11px;
+  gap: 12px;
+}
+
+.receiptSurplusLabel {
+  font-size: 15.5px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.receiptSurplusSub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-top: 3px;
+  white-space: nowrap;
+}
+
+.receiptOverBudget {
+  font-size: 12.5px;
+  color: var(--red);
+  font-weight: 600;
+  margin-top: 6px;
+}
+
+/* Spacer */
+.spacer22 { height: 22px; }
+
+/* Accounts card */
+.accountsCardInner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.accountsCardLeft {}
+
+.accountsCardSub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.accountsStaleRow {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-2);
+  color: var(--amber);
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+/* Ask Claude card */
+.claudeCard {
+  width: 100%;
+  text-align: left;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 16px;
+  border-radius: var(--r-card);
+  background: linear-gradient(120deg, #25335a, #1e2a4a);
+  color: #fff;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+
+.claudeCard:active { transform: scale(0.978); }
+
+.claudeIconBox {
+  width: 44px;
+  height: 44px;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.12);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  color: #cdbbff;
+}
+
+.claudeText { flex: 1; }
+
+.claudeTitle {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.claudeSub {
+  display: block;
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.66);
+  margin-top: 2px;
+}

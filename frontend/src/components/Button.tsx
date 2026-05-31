@@ -12,6 +12,7 @@ interface ButtonProps {
   full?: boolean
   disabled?: boolean
   type?: 'button' | 'submit' | 'reset'
+  className?: string
 }
 
 export function Button({
@@ -22,12 +23,14 @@ export function Button({
   full,
   disabled,
   type = 'button',
+  className,
 }: ButtonProps) {
   const cls = [
     styles.btn,
     styles[variant],
     full ? styles.full : '',
     disabled ? styles.disabled : '',
+    className ?? '',
   ]
     .filter(Boolean)
     .join(' ')

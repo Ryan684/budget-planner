@@ -1,0 +1,64 @@
+.categoryGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.categoryChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-radius: 99px;
+  font-size: 13.5px;
+  font-weight: 600;
+  border: 1px solid var(--line);
+  background: var(--card);
+  color: var(--ink-2);
+  cursor: pointer;
+  transition: transform 0.08s ease, background 0.12s ease;
+}
+
+.categoryChip:active { transform: scale(0.96); }
+
+.categoryChipActive {
+  border-color: var(--navy);
+  background: var(--navy);
+  color: #fff;
+}
+
+.categoryDot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.recurringRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 2px 4px;
+}
+
+.recurringLabel {
+  font-size: 14.5px;
+  font-weight: 600;
+}
+
+.recurringSub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-top: 2px;
+}
+
+.deleteBtn {
+  margin-top: 14px;
+}
+
+.accountNote {
+  margin: -6px 2px 8px;
+  font-size: 12.5px;
+  color: var(--ink-3);
+  line-height: 1.45;
+}

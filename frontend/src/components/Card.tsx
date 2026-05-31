@@ -3,7 +3,7 @@ import styles from './Card.module.css'
 
 interface CardProps {
   children: ReactNode
-  pad?: number
+  pad?: number | string
   onClick?: () => void
   className?: string
 }

@@ -1,8 +1,11 @@
+import type { CSSProperties } from 'react'
+
 interface IconProps {
   name: string
   size?: number
   sw?: number
   className?: string
+  style?: CSSProperties
 }
 
 const PATHS: Record<string, string> = {
@@ -25,7 +28,7 @@ const PATHS: Record<string, string> = {
   calendar:  'M3 4h18v18H3zM16 2v4M8 2v4M3 10h18',
 }
 
-export function Icon({ name, size = 20, sw = 1.8, className }: IconProps) {
+export function Icon({ name, size = 20, sw = 1.8, className, style }: IconProps) {
   const d = PATHS[name]
   return (
     <svg
@@ -39,6 +42,7 @@ export function Icon({ name, size = 20, sw = 1.8, className }: IconProps) {
       strokeLinejoin="round"
       aria-hidden="true"
       className={className}
+      style={style}
     >
       {d && <path d={d} />}
     </svg>

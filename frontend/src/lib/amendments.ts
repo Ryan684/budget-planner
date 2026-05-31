@@ -6,6 +6,7 @@ const MONEY_FIELDS = new Set(['amount', 'balance'])
 export interface AmendmentView {
   id: number
   verb: string
+  entityType: string
   sourceLabel: 'You' | 'Claude'
   from: number | string | undefined
   to: number | string | undefined
@@ -34,6 +35,7 @@ export function mapAmendment(a: AmendmentRead): AmendmentView {
   return {
     id: a.id,
     verb,
+    entityType: a.entity_type,
     sourceLabel: a.source === 'claude' ? 'Claude' : 'You',
     from: parseValue(a.field_changed, a.old_value),
     to: parseValue(a.field_changed, a.new_value),

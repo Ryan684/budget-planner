@@ -88,3 +88,51 @@ describe('mapAmendment reason', () => {
     expect(a.reason).toBeNull()
   })
 })
+
+describe('mapAmendment entity type', () => {
+  it('passes through entity_type', () => {
+    const a = mapAmendment({ ...base, entity_type: 'bill' })
+    expect(a.entityType).toBe('bill')
+  })
+
+  it('passes through income entity_type', () => {
+    const a = mapAmendment({ ...base, entity_type: 'income' })
+    expect(a.entityType).toBe('income')
+  })
+})
+
+describe('mapAmendment balance field treated as money', () => {
+  it('parses balance field value as a number', () => {
+    const a = mapAmendment({ ...base, field_changed: 'balance', old_value: '5000.0', new_value: '5500.0' })
+    expect(a.from).toBe(5000)
+    expect(a.to).toBe(5500)
+  })
+})
+
+describe('mapAmendment non-money numeric field', () => {
+  it('parses a numeric due_date string as a number', () => {
+    const a = mapAmendment({ ...base, field_changed: 'due_date', old_value: '1', new_value: '15' })
+    expect(a.from).toBe(1)
+    expect(a.to).toBe(15)
+  })
+
+  it('returns string for non-numeric non-money value', () => {
+    const a = mapAmendment({ ...base, field_changed: 'is_recurring', old_value: 'false', new_value: 'true' })
+    expect(a.from).toBe('false')
+    expect(a.to).toBe('true')
+  })
+
+  it('returns empty string when value is empty string for non-money field', () => {
+    const a = mapAmendment({ ...base, field_changed: 'label', old_value: '', new_value: '' })
+    expect(a.from).toBe('')
+    expect(a.to).toBe('')
+  })
+})
+
+describe('mapAmendment NaN amount', () => {
+  it('falls back to raw string when amount is non-numeric', () => {
+    const a = mapAmendment({ ...base, field_changed: 'amount', old_value: 'n/a', new_value: 'n/a' })
+    expect(a.from).toBe('n/a')
+    expect(a.to).toBe('n/a')
+  })
+})
