@@ -1,0 +1,54 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  background: var(--navy);
+  color: #fff;
+  flex-shrink: 0;
+  padding: 52px 16px 18px;
+}
+
+.title {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 700;
+}
+
+.body {
+  flex: 1;
+  background: var(--bg);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 0 32px;
+}
+
+.iconBox {
+  width: 76px;
+  height: 76px;
+  border-radius: 22px;
+  background: var(--navy-tint);
+  color: var(--navy);
+  display: grid;
+  place-items: center;
+  margin-bottom: 22px;
+}
+
+.heading {
+  margin: 0 0 8px;
+  font-size: 22px;
+  font-weight: 700;
+}
+
+.desc {
+  margin: 0 0 26px;
+  font-size: 15px;
+  color: var(--ink-2);
+  line-height: 1.5;
+  max-width: 280px;
+}

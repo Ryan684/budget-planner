@@ -1,0 +1,15 @@
+.root {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  margin: 2px 4px 9px;
+}
+
+.label {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-3);
+  white-space: nowrap;
+}
