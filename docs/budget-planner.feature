@@ -1,6 +1,8 @@
 # Family Budget Planner — Feature Files (v3)
 # Pots removed. Account balances replace pots as the real-money awareness layer.
-# Exhaustive negative/error scenarios to be completed during Claude Code implementation.
+# Negative/error scenarios are added per-feature as each phase is implemented.
+# Phase 1 (data layer) error scenarios added for Income, Bills, Account Balances,
+# and Amendments Log. Remaining phases will extend their own sections similarly.
 
 Feature: Month Management
 
@@ -97,6 +99,28 @@ Feature: Income
     When I add a third entry for £200
     Then total income shows £4,200 immediately
 
+  # --- Error / negative scenarios (added during Phase 1 implementation) ---
+
+  Scenario: Reject a negative income amount
+    Given I am on the income screen for the current month
+    When I add an income entry with an amount of -£50
+    Then the entry is rejected as invalid
+    And no income entry is created
+
+  Scenario: Edit a non-existent income entry
+    When I attempt to edit an income entry that does not exist
+    Then I see a not-found error
+    And nothing is changed
+
+  Scenario: Delete a non-existent income entry
+    When I attempt to delete an income entry that does not exist
+    Then I see a not-found error
+
+  Scenario: Add income to a non-existent month
+    When I attempt to add an income entry to a month that does not exist
+    Then I see a not-found error
+    And no income entry is created
+
 
 Feature: Bills
 
@@ -145,6 +169,30 @@ Feature: Bills
     Then the due date is shown alongside the bill
     And bills with due dates are sorted by due date within their category
 
+  # --- Error / negative scenarios (added during Phase 1 implementation) ---
+
+  Scenario: Reject a negative bill amount
+    Given I am on the bills screen for the current month
+    When I add a bill with an amount of -£10
+    Then the bill is rejected as invalid
+    And no bill is created
+
+  Scenario: Reject a bill due date outside the valid range
+    Given I am on the bills screen for the current month
+    When I add a bill with a due date of 32
+    Then the bill is rejected as invalid
+    And no bill is created
+
+  Scenario: Edit a non-existent bill
+    When I attempt to edit a bill that does not exist
+    Then I see a not-found error
+    And nothing is changed
+
+  Scenario: Add a bill to a non-existent month
+    When I attempt to add a bill to a month that does not exist
+    Then I see a not-found error
+    And no bill is created
+
 
 Feature: Account Balances
 
@@ -190,6 +238,26 @@ Feature: Account Balances
     When I view the accounts screen
     Then a visual indicator shows the balance may be stale
     And the as-of date is shown clearly
+
+  # --- Error / negative scenarios (added during Phase 1 implementation) ---
+
+  Scenario: Reject a negative account balance
+    Given I am on the accounts screen
+    When I add an account with a balance of -£1
+    Then the account is rejected as invalid
+    And no account is created
+
+  Scenario: Edit a non-existent account
+    When I attempt to edit an account that does not exist
+    Then I see a not-found error
+    And nothing is changed
+
+  Scenario: Account balance change records the active month in the amendment
+    Given an account "Savings" exists
+    And the current active month is June 2026
+    When I update the account balance
+    Then the amendment is logged against June 2026
+    And the amendment source is "user"
 
 
 Feature: Dashboard
@@ -359,6 +427,24 @@ Feature: Amendments Log
     When I access the amendments log for that month
     Then I see a chronological list of all changes
     And each entry shows source, field changed, old value, new value, reason, and timestamp
+
+  # --- Added during Phase 1 implementation: all writes are logged, append-only ---
+
+  Scenario: Creating an entry is logged
+    When I add a new bill, income entry, or account
+    Then an amendment is recorded with source "user"
+    And the field changed is recorded as "created"
+
+  Scenario: Deleting an entry is logged
+    When I delete a bill, income entry, or account
+    Then an amendment is recorded with source "user"
+    And the field changed is recorded as "deleted"
+
+  Scenario: Amendment history survives deletion of its entity
+    Given a bill exists with a logged amendment
+    When I delete that bill
+    Then the bill is removed
+    And its amendment history remains in the log
 
 
 Feature: Backup

@@ -1,0 +1,49 @@
+[project]
+name = "budget-planner-backend"
+version = "0.1.0"
+description = "Family Budget Planner — FastAPI backend (Phase 1 data layer)"
+requires-python = ">=3.14"
+dependencies = [
+    "fastapi",
+    "uvicorn[standard]",
+    "sqlalchemy>=2",
+    "pydantic>=2",
+    "pydantic-settings",
+    "python-dotenv",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest",
+    "httpx",
+    "mutmut",
+    "ruff",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+py-modules = [
+    "main",
+    "config",
+    "database",
+    "models",
+    "schemas",
+    "crud",
+    "budget",
+    "carry_forward",
+]
+packages = ["routers"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+
+[tool.mutmut]
+# mutmut 3.x expects a list of paths. Scope mutation to the core logic
+# modules (calculations, carry-forward, amendment logging) — not routers,
+# schemas, or boilerplate.
+paths_to_mutate = ["budget.py", "carry_forward.py", "crud.py"]
+tests_dir = ["tests/"]
