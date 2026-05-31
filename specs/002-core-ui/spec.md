@@ -3,11 +3,29 @@
 **Feature Branch**: `002-core-ui` (Spec Kit branch-per-feature model; merged to `main` via PR when quality gates pass)
 **Created**: 2026-05-31
 **Status**: Draft
-**Input**: `docs/budget-planner-spec.md` (Phase 2 — Core UI), `docs/budget-planner.feature`
+**Input**: `docs/budget-planner-spec.md` (Phase 2 — Core UI), `docs/budget-planner.feature`,
+`docs/mockup/` (Claude Designer prototype — visual + interaction source of truth)
 
 > Describes WHAT and WHY only — implementation detail lives in `plan.md`. Scoped to the
 > mobile-first frontend that makes the Phase 1 data layer usable from a phone browser.
 > Claude integration + undo, backup automation, and PIN/auth are out of scope.
+>
+> **Design reference**: `docs/mockup/` is a working Claude Designer prototype (screens, shared
+> components, design tokens, and sample data) and is the **visual and interaction source of truth**
+> for this phase. The build must reproduce its layout, navigation, and component language. The key
+> structures it fixes are:
+> - **Bottom tab bar** with four tabs — Dashboard, Bills, Accounts, Claude — on a navy chrome;
+>   Income, Amendments, Months, and Create-month are sub-screens reached from the dashboard
+>   "Manage" list and the month switcher.
+> - **Dashboard hero** (navy, turns red on negative surplus): month switcher, large surplus
+>   figure, a status pill, and a "bills-of-income" progress bar; below it a receipt-style
+>   `income − bills = surplus` card, an accounts-total card (with stale warning), an "Ask Claude"
+>   card, and a Manage list (Income, Amendments log, Months).
+> - **Add/edit via bottom sheets** (label, amount, recurring toggle, category for bills, optional
+>   due day) with a delete action when editing — not separate pages.
+> - **Design tokens**: navy brand ramp, IBM Plex Sans / IBM Plex Mono (figures), semantic
+>   green/amber/red tones, 14px card radius; account freshness shown as a green/amber dot, an
+>   "Updated N days ago" label, and a "Stale" pill at ≥30 days.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -28,14 +46,19 @@ and total-balances figures, formatted in GBP, with no manual calculation require
 **Acceptance Scenarios**:
 
 1. **Given** income and bills are set for the current month, **When** I view the dashboard,
-   **Then** I see total income, total bills, and monthly surplus, all mathematically consistent.
-2. **Given** account balances exist, **When** I view the dashboard, **Then** I see the total
-   across all accounts and can navigate to the full accounts screen.
+   **Then** the hero shows the monthly surplus and a status pill, the receipt card shows total
+   income, fixed bills, and surplus, and all figures are mathematically consistent.
+2. **Given** account balances exist, **When** I view the dashboard, **Then** the accounts card
+   shows the total across all accounts (with a stale warning if any balance is ≥30 days old) and
+   tapping it navigates to the full accounts screen.
 3. **Given** a negative surplus, **When** I view the dashboard, **Then** the surplus is shown in
-   red with a leading minus sign (never parentheses).
-4. **Given** no months exist, **When** I open the app for the first time, **Then** I see a prompt
-   to create my first month and no figures or errors are shown.
-5. **Given** a change was made on another screen, **When** I return to the dashboard, **Then** the
+   red with a leading minus sign (never parentheses) and the hero adopts its negative treatment.
+4. **Given** the app shell, **When** I view any primary screen, **Then** a bottom tab bar offers
+   Dashboard, Bills, Accounts, and Claude, and the dashboard Manage list links to Income, the
+   Amendments log, and Months.
+5. **Given** no months exist, **When** I open the app for the first time, **Then** I see the empty
+   state prompting me to create my first month, with no figures or errors shown.
+6. **Given** a change was made on another screen, **When** I return to the dashboard, **Then** the
    figures reflect the latest state fetched fresh from the data layer.
 
 ---
@@ -53,8 +76,8 @@ in the list and total income increases by £500; edit and delete it and totals u
 
 **Acceptance Scenarios**:
 
-1. **Given** the income screen, **When** I add an entry (e.g. "Freelance", £500, non-recurring),
-   **Then** it appears in the list and total income and surplus update accordingly.
+1. **Given** the income screen, **When** I tap add and complete the bottom sheet (e.g. "Freelance",
+   £500, non-recurring), **Then** it appears in the list and total income and surplus update.
 2. **Given** the income screen, **When** I add a recurring entry, **Then** it is flagged as
    recurring in the list.
 3. **Given** an existing entry, **When** I edit its amount, **Then** the list, total income, and
@@ -81,17 +104,19 @@ correct per-category subtotals; raise bills above income and the over-budget war
 
 **Acceptance Scenarios**:
 
-1. **Given** the bills screen, **When** I add a bill (e.g. "Mortgage", £1,100, "Housing",
-   recurring), **Then** it appears under its category and total bills and surplus update.
+1. **Given** the bills screen, **When** I tap add and complete the bottom sheet (e.g. "Mortgage",
+   £1,100, "Housing", recurring), **Then** it appears under its category and totals update.
 2. **Given** bills across multiple categories, **When** I view the screen, **Then** bills are
-   visually grouped by category and each category shows a subtotal.
-3. **Given** total income £3,000, **When** total bills reach £3,100, **Then** a visible warning is
-   shown and surplus displays as negative (red, minus sign).
-4. **Given** a bill with a due date, **When** I view the screen, **Then** the due date is shown
+   visually grouped by category (with a colour dot) and each category shows a subtotal.
+3. **Given** the bill sheet, **When** I set a category, **Then** I can pick a suggested category
+   (Housing, Utilities, Childcare, Transport, Insurance, One-off) or type my own free-text value.
+4. **Given** total income £3,000, **When** total bills reach £3,100, **Then** a visible warning
+   banner is shown and surplus displays as negative (red, minus sign).
+5. **Given** a bill with a due date, **When** I view the screen, **Then** the due date is shown
    and bills with due dates are sorted by due date within their category.
-5. **Given** an existing bill, **When** I edit or delete it, **Then** the list and totals update
-   immediately and edits are recorded as user amendments.
-6. **Given** the bill form, **When** I submit a negative amount or a due date outside 1–31,
+6. **Given** an existing bill, **When** I open its sheet to edit or delete it, **Then** the list
+   and totals update immediately and edits are recorded as user amendments.
+7. **Given** the bill sheet, **When** I submit a negative amount or a due day outside 1–31,
    **Then** the bill is rejected with a clear message and nothing is created.
 
 ---
@@ -110,15 +135,17 @@ shows £22,700; a balance dated more than 30 days ago shows a stale indicator.
 
 **Acceptance Scenarios**:
 
-1. **Given** the accounts screen, **When** I add an account with a balance and as-of date,
-   **Then** it appears and the total across all accounts updates immediately.
+1. **Given** the accounts screen, **When** I add an account via its sheet (saving records the
+   balance as of today), **Then** it appears and the total across all accounts updates immediately.
 2. **Given** three accounts (£2,300, £8,400, £12,000), **When** I view the screen, **Then** the
-   total shows £22,700.
-3. **Given** an existing account, **When** I edit its balance, **Then** I can set the as-of date
-   to today, the new balance and date are shown, and the change is recorded as a user amendment.
-4. **Given** an account, **When** I delete it, **Then** it is removed and the total updates.
-5. **Given** a balance recorded more than 30 days ago, **When** I view the screen, **Then** a
-   visual stale indicator is shown and the as-of date is shown clearly.
+   navy header total shows £22,700.
+3. **Given** an existing account, **When** I edit its balance, **Then** the as-of date moves to
+   today, the new balance and an "Updated …" label are shown, and a user amendment is recorded.
+4. **Given** an account, **When** I delete it from its sheet, **Then** it is removed and the total
+   updates.
+5. **Given** a balance recorded more than 30 days ago, **When** I view the screen, **Then** the
+   account shows an amber freshness dot and a "Stale" pill, a header/banner stale count appears,
+   and the as-of date is shown clearly.
 6. **Given** accounts exist, **When** I switch to view a previous month, **Then** the accounts
    screen still shows the same current balances, not duplicated or historicised per month.
 
@@ -150,9 +177,11 @@ and the new month reflects the override while the previous month is unchanged.
    nothing pre-populated.
 5. **Given** a month already exists for a period, **When** I attempt to create it again, **Then**
    I see an error that the month exists and no duplicate is created.
-6. **Given** multiple months, **When** I navigate to a previous month, **Then** I see its income,
-   bills, and surplus with all fields read-only; **When** I navigate back to the current month,
-   **Then** fields are editable again.
+6. **Given** the carry-forward screen, **When** I review it, **Then** a projected-surplus figure
+   updates as I amend or exclude items before I confirm.
+7. **Given** multiple months, **When** I move between months via the dashboard hero switcher or
+   the Months list, **Then** a previous month shows a read-only banner and exposes no active
+   add/edit/delete controls; **When** I return to the current month, **Then** editing is restored.
 
 ---
 
@@ -185,9 +214,12 @@ entry shows source "user", the field changed, and both old and new values with a
 - **Negative surplus**: shown in red with a minus sign on both the dashboard and bills screen.
 - **Invalid input**: negative amounts/balances and due dates outside 1–31 are blocked in the UI
   with a clear message; the entry is not created.
-- **Previous month**: editing controls (add/edit/delete) are hidden or disabled when a past month
-  is in view.
-- **Stale balance**: account balances older than 30 days carry a visible stale indicator.
+- **Previous month**: editing controls (the add button, row taps into sheets, add buttons) are
+  hidden or disabled and a read-only banner is shown when a past month is in view.
+- **Stale balance**: account balances ≥30 days old carry an amber dot, a "Stale" pill, and
+  contribute to the stale count surfaced on the dashboard and accounts screens.
+- **Claude entry point**: the Claude tab and the dashboard "Ask Claude" card are present but route
+  to a "Coming in Phase 3" placeholder — no chat, context, write, or undo behaviour.
 - **Data-layer error**: if a read or write to the data layer fails, the UI shows a recoverable
   error state rather than silently displaying stale or partial figures.
 
@@ -199,7 +231,9 @@ entry shows source "user", the field changed, and both old and new values with a
   monthly surplus, and total account balances for the current month, with a link to the accounts
   screen and an entry point to each other screen.
 - **FR-002**: The UI MUST let users add, edit, and delete income entries and bills for the current
-  month, including a recurring toggle, and for bills a category and an optional due date.
+  month via bottom sheets, including a recurring toggle, and for bills a category and an optional
+  due day; the category field MUST offer the suggested set (Housing, Utilities, Childcare,
+  Transport, Insurance, One-off) while still accepting a free-text value.
 - **FR-003**: The UI MUST group bills by category with a subtotal per category and sort bills with
   due dates by due date within their category.
 - **FR-004**: The UI MUST show a visible warning when total bills exceed total income and display
@@ -217,24 +251,37 @@ entry shows source "user", the field changed, and both old and new values with a
   recomputing from stale client-side state, so all displayed totals stay consistent.
 - **FR-010**: The UI MUST validate input before submitting — rejecting negative amounts/balances
   and due dates outside 1–31 — and surface a clear, user-friendly message on rejection.
-- **FR-011**: All monetary figures MUST be formatted as GBP `£X,XXX.XX`; all timestamps MUST be
-  displayed in local time.
+- **FR-011**: All monetary figures MUST be formatted as GBP `£X,XXX.XX` (two decimal places) with
+  negatives in red and a leading minus sign; all timestamps MUST be displayed in local time.
 - **FR-012**: The UI MUST present friendly empty states (e.g. create-first-month prompt, empty
-  list messaging) and recoverable error states when a data-layer read or write fails.
+  accounts state) and recoverable error states when a data-layer read or write fails.
+- **FR-013**: The UI MUST provide a persistent bottom tab bar (Dashboard, Bills, Accounts, Claude)
+  on primary screens, with Income, Amendments, Months, and Create-month reachable as sub-screens
+  from the dashboard Manage list and the month switcher, matching the mockup's navigation.
+- **FR-014**: The UI's layout, components, and design language (navy chrome, dashboard hero with
+  surplus + status pill + bills-of-income bar, receipt-style summary card, account freshness dots
+  and "Stale" pill, bottom-sheet forms) MUST follow the `docs/mockup/` prototype.
+- **FR-015**: The Claude tab and the dashboard "Ask Claude" card MUST be present but route to a
+  placeholder indicating Claude arrives in Phase 3, with no chat, context injection, write, or
+  undo behaviour implemented this phase.
 
 ### Key Entities
 
 The UI consumes the Phase 1 data-layer entities; it does not introduce new persisted entities.
 The user-facing views are:
 
-- **Dashboard** — summary of income, bills, surplus, and total balances for the current month.
+- **App shell** — navy chrome with a bottom tab bar (Dashboard, Bills, Accounts, Claude).
+- **Dashboard** — hero (month switcher, surplus, status pill, bills-of-income bar), receipt-style
+  income/bills/surplus card, accounts-total card, "Ask Claude" card, and a Manage list.
 - **Income list** — income entries for the viewed month (label, amount, recurring).
 - **Bills list** — bills for the viewed month grouped by category (label, amount, category,
-  recurring, optional due date), with subtotals.
-- **Accounts list** — account balances (label, balance, as-of date, stale flag) and total; not
-  month-scoped.
-- **Month switcher / carry-forward prompt** — month navigation and new-month creation flow.
+  recurring, optional due day), with per-category subtotals.
+- **Accounts list** — account balances (label, balance, as-of date, freshness/stale indicator)
+  and total; not month-scoped.
+- **Edit/add bottom sheet** — the add/edit form for income, bills, and accounts, with delete.
+- **Month switcher / Months list / Create-month** — month navigation and the carry-forward flow.
 - **Amendments log** — chronological change history for the viewed month.
+- **Claude placeholder** — tab + dashboard card indicating Phase 3 (no behaviour this phase).
 
 ## Success Criteria *(mandatory)*
 
@@ -250,15 +297,26 @@ The user-facing views are:
   and the affected totals reflect the change without a manual page reload.
 - **SC-005**: All monetary figures render as `£X,XXX.XX` and negative figures appear in red with a
   minus sign across every screen; previous-month views expose no active edit controls.
+- **SC-006**: The implemented screens match the `docs/mockup/` prototype in layout, navigation
+  (bottom tab bar + sub-screens), and component language, as confirmed by side-by-side review.
 
 ## Assumptions
 
 - **Built on Phase 1 API**: Phase 2 is a frontend layer over the existing Phase 1 data-layer
   endpoints and introduces no new backend behaviour. If a screen needs data the API does not yet
   expose, that gap is raised explicitly during planning rather than silently adding backend scope.
-- **Claude entry point deferred**: the dashboard's quick-access Claude button is out of scope for
-  Phase 2; it is either omitted or shown as a disabled placeholder until Phase 3, with no chat,
-  context injection, write, or undo behaviour implemented.
+- **Mockup is the visual source of truth**: `docs/mockup/` (Claude Designer prototype) defines the
+  layout, navigation, and component language to reproduce. The prototype is built with inline
+  styles for speed; the production build translates that design into the project's styling approach
+  (no inline styles, per CLAUDE.md) — a `plan.md` concern, not a visual change.
+- **Claude entry point scaffolded as placeholder** *(confirmed)*: the Claude bottom tab and the
+  dashboard "Ask Claude" card are built into the shell but route to a "Coming in Phase 3"
+  placeholder — no chat, context injection, write, or undo behaviour this phase.
+- **Currency uses pence** *(confirmed)*: figures render as `£X,XXX.XX` per CLAUDE.md; the mockup's
+  whole-pound display (e.g. "£2,340") is treated as prototype shorthand, not the target format.
+- **Categories are free-text with suggestions** *(confirmed)*: the bills sheet offers the mockup's
+  six categories as quick picks but accepts any typed value, matching the Phase 1 free-text field;
+  grouping is by whatever category string a bill carries.
 - **Read-only is basic this phase**: previous months are rendered read-only by hiding/disabling
   edit controls; comprehensive read-only hardening and full error-state coverage (Pi offline, API
   failure handling) are completed in Phase 5.

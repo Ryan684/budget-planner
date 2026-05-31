@@ -32,8 +32,15 @@
 ## Notes
 
 - Items marked incomplete require spec updates before `/speckit-clarify` or `/speckit-plan`
-- Validated 2026-05-31: all items pass on first iteration.
+- Validated 2026-05-31: all items pass.
 - "Mobile-first" and "phone browser" are retained as user-context (the product is a phone-accessed
   app) rather than implementation choices; no framework, language, or API names appear in the spec.
 - Scope is bounded against the source spec's phased plan: Claude (Phase 3), backup (Phase 4), and
   PIN/auth + hardening (Phase 5) are explicitly out of scope.
+- Revised after reviewing the `docs/mockup/` Claude Designer prototype, now named the visual and
+  interaction source of truth (bottom tab bar, dashboard hero, bottom-sheet editing, design tokens).
+- Three conflicts between the mockup and CLAUDE.md were resolved with the user (recorded as
+  *confirmed* assumptions in spec.md): currency uses **pence** (`£X,XXX.XX`, not the mockup's
+  whole-pound shorthand); the Claude tab/card is **scaffolded as a Phase 3 placeholder**; bill
+  categories are **free-text with the mockup's set as suggestions**. No `[NEEDS CLARIFICATION]`
+  markers remain.
