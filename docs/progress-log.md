@@ -7,13 +7,66 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** ✅ Phase 1 (Data Layer) — complete
-**Last updated:** 2026-05-30
-**Next session goal:** Begin Phase 2 (Core UI). Run `/speckit-specify` for `002-core-ui` (per-feature branch), then plan/tasks/implement the React + Vite frontend against the live backend API.
+**Phase:** ✅ Phase 2 (Core UI) — complete (code/tests/mutation gates green; live-app gates T066–T068 deferred — need a running backend + browser)
+**Last updated:** 2026-05-31
+**Next session goal:** Run the deferred live-app verification (T066–T068) — boot `backend` + `frontend`, walk the `specs/002-core-ui/quickstart.md` smoke checklist and the mobile-viewport/visual-fidelity passes — then begin Phase 3 (Claude integration): `/speckit-specify` for `003-claude-integration`.
 
 ---
 
 ## Phase Completion Log
+
+### ✅ Phase 2 — Core UI (2026-05-31)
+
+Implemented via Spec Kit `/speckit-implement` against `specs/002-core-ui/tasks.md` (T001–T069).
+Branch `claude/budget-planner-spec-phase-2-hChzu`. Mobile-first React + Vite + TypeScript frontend
+over the Phase 1 API — no Claude yet. **135 tests across 14 files, all green; mutation score 91.60%
+on `src/lib/`; lint + `tsc` + production build all clean.**
+
+**Toolchain / setup (`frontend/`):**
+- Vite + React + TypeScript (strict), Vitest + React Testing Library + jsdom, StrykerJS (vitest runner).
+- `vite.config.ts` — `/api` proxy → `:8000`; Vitest jsdom config. **Imports `defineConfig` from
+  `vitest/config`** (not `vite`) so the `test` key type-checks under `tsc -b` at build time.
+- `stryker.config.json` — vitest runner, `mutate: ["src/lib/**/*.ts"]`, html+clear-text reporters.
+- `tokens.css` design tokens; `eslint.config.js` (disabled over-broad `react-hooks/set-state-in-effect`;
+  `argsIgnorePattern: '^_'` for intentionally-unused params).
+
+**API layer (`src/api/`):** `types.ts` (mirrors `backend/schemas.py` verbatim — `is_recurring`,
+`due_date`, `as_of_date`, `account_type`), `client.ts` (`apiFetch<T>` + `ApiError`; 409→"That month
+already exists", 404→"Not found", 422→extracted FastAPI detail; `ApiError` uses explicit field
+declarations, **not** TS parameter properties — required by `erasableSyntaxOnly`), and per-entity
+modules `months.ts` / `income.ts` / `bills.ts` / `accounts.ts` / `amendments.ts`.
+
+**Shared logic (`src/lib/`, mutation-tested):** `format.ts` (`gbp` → `£X,XXX.XX`, negative `-£` red;
+`fmtTimestamp`), `dates.ts` (`daysAgo`, `isStale` ≥30, `nextMonthString`, `fmtAsOf`), `amendments.ts`
+(`mapAmendment` → verb/`entityType`/`sourceLabel`/from→to/reason/local ts), `projected.ts`
+(`calcProjectedSurplus`), `categories.ts` (6 suggested categories + colour dots, `getDot`,
+`categoryOrder`).
+
+**Hooks (`src/hooks/`):** `useMonths` (derives `editableMonthId` = latest month, `isReadOnly(id)`),
+`useMonthDetail`, `useAccounts`, `useAmendments` — each `{ data, loading, error, refetch }`; every
+write calls `refetch()` so figures come fresh from the API.
+
+**Components (`src/components/`):** `Icon` (inline SVG set; now accepts `style`), `Money`, `SurplusBar`,
+`Card` (accepts `number | string` pad), `Banner`, `StatusPill`, `Button`, `Row`, `SectionLabel`,
+`StateView` (shared loading / error+retry / empty), form primitives (`Sheet`, `Field`, `TextInput`,
+`MoneyInput`, `Toggle`), `ItemSheet` (single component, income/bill/account modes), `NavHeader`, `TabBar`.
+
+**Screens (`src/screens/`):** `Dashboard` (navy hero + month switcher + `StatusPill` + `SurplusBar`,
+receipt card, accounts card w/ stale count, Ask-Claude card, Manage list, read-only banner),
+`EmptyState`, `Income`, `Bills` (category grouping + subtotals + over-budget banner), `Accounts`
+(freshness dots + Stale pills — **not month-scoped, always editable**), `MonthManagement`
+(`MonthsList` + `CreateMonthFlow` carry-forward with live projected surplus), `Amendments`, `Claude`
+(inert "Coming in Phase 3"). App shell in `App.tsx` (screen-state machine, `activeMonthId` vs
+`editableMonthId`, `readOnly` enforcement, TabBar host).
+
+**Repo:** `frontend/MUTANTS.md` (10 surviving `lib/` mutants documented as acceptable — locale/Date
+normalisation invisible in the test env, and internal display-helper branches in `parseValue`).
+
+**Quality gates:** `npm run lint` clean · `npx tsc --noEmit` clean · `npm run build` clean ·
+`npm run test` 135/135 · `npm run test:mutation` 91.60% (109 killed / 10 survived, all documented).
+
+**Deferred (require a running app, not available in this container):** T066 mobile-viewport pass,
+T067 visual review vs `docs/mockup/`, T068 quickstart smoke checklist against the live backend.
 
 ### ✅ Phase 1 — Data Layer (2026-05-30)
 
@@ -56,6 +109,8 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | Backend test framework | "Vitest for Phase 1 calc" | **pytest** | The calc lives in Python; Vitest is frontend-only (Phase 2). Spec error. |
 | Account schema | `account_balances` has no type column | Added **`account_type`** (`current`/`savings`) | Needed so `total_savings` (in the spec's budget logic) is computable. |
 | Amendment scope | Feature file asserts logging on *edits* | Log **all** writes (create/edit/delete) | CLAUDE.md "every write logged" + append-only audit principle. |
+| Account type selector (Phase 2) | research.md §8 anticipated a `current`/`savings` picker in the account sheet | **Deferred** — `ItemSheet` account mode collects label + balance only; `account_type` defaults server-side | No Phase 2 Gherkin scenario exercises the savings/current split; keeps the sheet minimal. Revisit if a savings-vs-current UI breakdown is wanted. |
+| `vitest/config` import | scaffolded `vite.config.ts` used `/// <reference types="vitest" />` + `defineConfig` from `vite` | Import `defineConfig` from **`vitest/config`** | The triple-slash ref isn't picked up by `tsconfig.node.json` (`types: ["node"]`) during `tsc -b`, so the `test` key failed to type-check at build. |
 
 ## Known issues / intentional oddities (do NOT "fix")
 
@@ -64,12 +119,23 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 - **mutmut 3.x false survivors:** 10 `crud.py` mutants report "survived" but are killed by the suite when applied directly — a mutmut 3.5.0 test-selection limitation, documented with evidence in `MUTANTS.md`. Not a coverage gap.
 - **mutmut config must use lists:** `paths_to_mutate` and `tests_dir` must be TOML lists, not comma-strings, or mutmut 3.x mutates the whole project / mis-parses the tests dir.
 
-## Starting point for next session (Phase 2)
+## Starting point for next session (finish Phase 2 verification → Phase 3)
 
-1. `cd` to repo root; the backend runs with `cd backend && uvicorn main:app --reload --port 8000` (boots, `/api/health` → 200, OpenAPI at `/docs`).
-2. Start the Spec Kit flow for Phase 2: `/speckit-specify` describing the Core UI (Dashboard, Income, Bills, Accounts, Month Management, Amendments screens — mobile-first React + Vite + TypeScript, no Claude yet), which creates branch `002-core-ui` + `specs/002-core-ui/`.
-3. Then `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`.
-4. Frontend consumes the existing API; Vite proxies `/api` → `:8000` (see CLAUDE.md). Reuse the budget figures from `GET /api/months/{id}/summary` and `/detail`; never recompute from stale client data.
+1. **Finish the deferred Phase 2 live-app gates (T066–T068)** — these need a running stack, which
+   the cloud container couldn't provide:
+   - Terminal 1: `cd backend && uvicorn main:app --reload --port 8000` (seed a month + a few
+     income/bills/accounts via `/docs` or the UI).
+   - Terminal 2: `cd frontend && npm run dev`, open `http://localhost:5173`.
+   - T066: DevTools device mode at 390×844 — confirm no horizontal scroll, touch targets ≥ ~44px.
+   - T067: walk each screen side-by-side with `docs/mockup/` and reconcile spacing/tones.
+   - T068: run the `specs/002-core-ui/quickstart.md` smoke checklist end-to-end.
+   - Tick T066–T068 in `specs/002-core-ui/tasks.md` once verified.
+2. **Open the Phase 2 PR** (one feature = one branch = one PR) from
+   `claude/budget-planner-spec-phase-2-hChzu` → `main` once the live gates pass.
+3. **Begin Phase 3 (Claude integration):** `/speckit-specify` for `003-claude-integration`
+   (chat UI, context injection, confirm-then-act direct writes, session-scoped undo), then
+   `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`. Runtime model is
+   `claude-sonnet-4-6`; calls go only through `/api/claude` (see the Claude Integration ADR in CLAUDE.md).
 
 ---
 
