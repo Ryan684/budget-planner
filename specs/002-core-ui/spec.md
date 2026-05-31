@@ -148,6 +148,9 @@ shows £22,700; a balance dated more than 30 days ago shows a stale indicator.
    and the as-of date is shown clearly.
 6. **Given** accounts exist, **When** I switch to view a previous month, **Then** the accounts
    screen still shows the same current balances, not duplicated or historicised per month.
+7. **Given** I am viewing a previous (read-only) month, **When** I open the Accounts screen,
+   **Then** I can still add/edit/delete balances — accounts are not month-scoped, so the read-only
+   rule applies only to month-scoped data (income, bills, dashboard, and that month's amendments).
 
 ---
 
@@ -243,8 +246,10 @@ entry shows source "user", the field changed, and both old and new values with a
 - **FR-006**: The UI MUST support creating a new month with a carry-forward prompt offering only
   recurring income and bills (amounts pre-filled and editable, items excludable), a skip option,
   and MUST prevent creating a duplicate month with a clear error.
-- **FR-007**: The UI MUST let users navigate between months and render previous months as
-  read-only (no add/edit/delete controls active), while keeping the current month editable.
+- **FR-007**: The UI MUST let users navigate between months and render previous months' month-scoped
+  data (income, bills, dashboard, amendments) as read-only (no add/edit/delete controls active),
+  while keeping the current month editable. The Accounts screen is not month-scoped and remains
+  editable regardless of which month is being viewed.
 - **FR-008**: The UI MUST display the amendments log for the viewed month as a chronological list
   showing source, field changed, old value, new value, reason, and timestamp.
 - **FR-009**: After any write, the UI MUST refresh budget figures from the data layer rather than

@@ -25,6 +25,8 @@ failing tests → minimum code). Test tasks precede the implementation they cove
 - After every component/logic slice: write the failing test first, then the minimum code.
 - After every successful write the screen calls the relevant hook's `refetch()` — figures always
   come fresh from the API (constitution V / FR-009).
+- Screens render the shared `StateView` when a data hook returns `loading` or `error` (recoverable
+  retry) — this covers FR-012's read-failure path in addition to inline write-error messages.
 - API field names are kept verbatim (`is_recurring`, `due_date`, `as_of_date`, `account_type`).
 - No inline styles — every component has a sibling `*.module.css`; tokens live in `styles/tokens.css`.
 - Money renders `£X,XXX.XX`, negatives red with a leading minus; timestamps in local time.
@@ -88,7 +90,7 @@ the app shell — everything every story depends on.
 
 - [ ] T029 [P] `Icon` + icon set in `frontend/src/components/Icon.tsx`
 - [ ] T030 [P] `Money` (uses `format.gbp`, red on negative) in `frontend/src/components/Money.tsx` + `Money.module.css` (depends on T017)
-- [ ] T031 [P] Layout primitives `Card`, `SectionLabel`, `Row`, `Banner`, `StatusPill`, `Button` (each + `.module.css`) in `frontend/src/components/`
+- [ ] T031 [P] Layout primitives `Card`, `SectionLabel`, `Row`, `Banner`, `StatusPill`, `Button`, and `StateView` (loading / error+retry / empty) (each + `.module.css`) in `frontend/src/components/`
 - [ ] T032 [P] Form primitives `Sheet`, `Field`, `TextInput`, `MoneyInput`, `Toggle` (each + `.module.css`) in `frontend/src/components/`
 - [ ] T033 [P] `SurplusBar` (bills-of-income, over-budget red) in `frontend/src/components/SurplusBar.tsx` + `.module.css`
 - [ ] T034 [P] Chrome `NavHeader` + `TabBar` (Dashboard·Bills·Accounts·Claude, Claude badge slot) in `frontend/src/components/` + modules (depends on T029)
@@ -210,7 +212,7 @@ previous unchanged; skip → blank; duplicate period → error.
 
 - [ ] T055 [US5] Implement Months list in `frontend/src/screens/MonthManagement.tsx` (+ module): months list with income/surplus minis, "Current" badge on editable/latest + lock on others, tap→switch→Dashboard (depends on T025, T026)
 - [ ] T056 [US5] Implement the Create-month flow in `MonthManagement.tsx`: `carryForwardPreview`, editable carry rows with exclude toggles, live `projected` surplus, confirm→`createMonth({carry_forward, overrides})`, skip→blank month (depends on T011, T023)
-- [ ] T057 [US5] Integrate the `MonthSwitcher` in the Dashboard hero and enforce read-only across Income/Bills/Accounts/Dashboard when `activeMonthId !== editableMonthId` (depends on T035, T040)
+- [ ] T057 [US5] Integrate the `MonthSwitcher` in the Dashboard hero and enforce read-only across the month-scoped screens (Dashboard income/bills, Income, Bills, and the viewed month's Amendments) when `activeMonthId !== editableMonthId`. **Accounts stay editable** (global / not month-scoped) (depends on T035, T040)
 - [ ] T058 [US5] Wire MonthManagement into the App shell + handle `409` duplicate-month inline (depends on T035, T056)
 
 **Checkpoint**: month creation, carry-forward, switching, and read-only past months all work.
@@ -270,8 +272,9 @@ reason, local timestamp).
 - **US2 (P1)**: after Foundational. Introduces `ItemSheet`.
 - **US3 (P1)**: after Foundational; T047 extends US2's `ItemSheet` (T043).
 - **US4 (P2)**: after Foundational; T051 extends US2's `ItemSheet` (T043).
-- **US5 (P2)**: after Foundational; T057 read-only enforcement touches US1–US4 screens (do US5 after
-  the screens it gates exist, or guard with the `readOnly` prop from the start).
+- **US5 (P2)**: after Foundational; T057 read-only enforcement touches the month-scoped screens
+  (US1 Dashboard, US2 Income, US3 Bills, US6 Amendments) — **not** US4 Accounts, which stay editable.
+  Do US5 after the screens it gates exist, or guard with the `readOnly` prop from the start.
 - **US6 (P3)**: after Foundational. Independent.
 
 ### Within each story

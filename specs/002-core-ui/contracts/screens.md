@@ -41,8 +41,9 @@ to the Gherkin in `docs/budget-planner.feature` and the spec's user stories.
   "Stale" pill at ≥30 days; header/banner stale count; empty state when no accounts.
 - **Writes**: `createAccount` / `updateAccount` / `deleteAccount` via Sheet (label + balance;
   saves as-of today; passes `active_month_id = editableMonthId`) → `refetch()`.
-- **Not month-scoped**: identical regardless of `activeMonthId`; still hides edit controls when a
-  past month is the active view (consistency with the read-only rule).
+- **Not month-scoped**: identical regardless of `activeMonthId`, and **remains editable** even when a
+  past month is the active view — accounts are global, so the read-only rule applies only to
+  month-scoped screens.
 
 ### Months + Create-month (`screens/MonthManagement.tsx`) — US5
 - **Months list reads**: `listMonths()`; per-month summary for the income/surplus mini-figures;
@@ -73,5 +74,7 @@ to the Gherkin in `docs/budget-planner.feature` and the spec's user stories.
 - **Formatting**: `£X,XXX.XX`; negatives red + leading minus; timestamps local time.
 - **Validation/errors**: client blocks invalid input pre-submit; mapped `422/404/409` and failed
   loads render recoverable inline error states.
-- **Read-only**: a past `activeMonthId` hides/disables all add/edit/delete affordances and shows the
-  read-only banner; returning to the editable month restores them.
+- **Read-only**: a past `activeMonthId` hides/disables add/edit/delete affordances on the
+  month-scoped screens (Dashboard, Income, Bills, Amendments) and shows the read-only banner;
+  returning to the editable month restores them. **Accounts are exempt** (global, not month-scoped)
+  and stay editable throughout.
