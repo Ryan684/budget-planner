@@ -51,7 +51,24 @@ export default function App() {
     return (
       <div className={styles.root}>
         <div className={styles.screenArea}>
-          <EmptyStateScreen onCreateMonth={() => setScreen('create-month')} />
+          {screen === 'create-month' ? (
+            <MonthManagementScreen
+              screen="create-month"
+              months={[]}
+              editableMonthId={0}
+              activeMonthId={0}
+              onSwitchMonth={() => {}}
+              onBack={() => setScreen('dashboard')}
+              onMonthCreated={(id) => {
+                setActiveMonthId(id)
+                refetchMonths()
+                go('dashboard')
+              }}
+              onGoCreateMonth={() => {}}
+            />
+          ) : (
+            <EmptyStateScreen onCreateMonth={() => setScreen('create-month')} />
+          )}
         </div>
       </div>
     )

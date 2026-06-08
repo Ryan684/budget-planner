@@ -48,6 +48,7 @@ export function DashboardScreen({
 
   if (detail.loading || accounts.loading) return <StateView loading />
   if (detail.error) return <StateView error={detail.error} onRetry={detail.refetch} />
+  if (!detail.data) return <StateView loading />
 
   const data = detail.data!
   const { summary, income, bills } = data

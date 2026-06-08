@@ -26,6 +26,7 @@ export function IncomeScreen({ activeMonthId, readOnly, onBack }: IncomeScreenPr
 
   if (loading) return <StateView loading />
   if (error) return <StateView error={error} onRetry={refetch} />
+  if (!data) return <StateView loading />
 
   const d = data!
   const monthLabel = d.month.month

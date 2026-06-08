@@ -27,7 +27,10 @@ interface MonthManagementScreenProps {
 }
 
 function nextMonthStr(months: MonthRead[]): string {
-  if (months.length === 0) return ''
+  if (months.length === 0) {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+  }
   const latest = months.reduce((max, m) => (m.month > max.month ? m : max))
   const [y, m] = latest.month.split('-').map(Number) as [number, number]
   const next = new Date(y, m)

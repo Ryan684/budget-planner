@@ -65,6 +65,7 @@ export function BillsScreen({ activeMonthId, readOnly }: BillsScreenProps) {
 
   if (loading) return <StateView loading />
   if (error) return <StateView error={error} onRetry={refetch} />
+  if (!data) return <StateView loading />
 
   const d = data!
   const { summary, bills } = d
