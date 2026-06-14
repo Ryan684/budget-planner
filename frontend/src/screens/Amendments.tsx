@@ -46,7 +46,8 @@ export function AmendmentsScreen({ activeMonthId, onBack }: AmendmentsScreenProp
                     </div>
                     {(v.from !== undefined || v.to !== undefined) && (
                       <div className={styles.fromTo}>
-                        {v.from !== undefined && <>{formatValue(v.from)} → </>}
+                        {v.from !== undefined && formatValue(v.from)}
+                        {v.from !== undefined && v.to !== undefined && <> → </>}
                         {v.to !== undefined && formatValue(v.to)}
                       </div>
                     )}

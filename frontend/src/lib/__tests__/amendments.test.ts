@@ -136,3 +136,27 @@ describe('mapAmendment NaN amount', () => {
     expect(a.to).toBe('n/a')
   })
 })
+
+describe('mapAmendment lifecycle summary display', () => {
+  it('shows descriptive summary as "to" for created events', () => {
+    const a = mapAmendment({ ...base, field_changed: 'created', old_value: null, new_value: 'Electricity (£85.00)' })
+    expect(a.from).toBeUndefined()
+    expect(a.to).toBe('Electricity (£85.00)')
+  })
+
+  it('shows descriptive summary as "from" for deleted events', () => {
+    const a = mapAmendment({ ...base, field_changed: 'deleted', old_value: 'Boiler (£120.00)', new_value: null })
+    expect(a.from).toBe('Boiler (£120.00)')
+    expect(a.to).toBeUndefined()
+  })
+
+  it('hides plain integer new_value for legacy created records', () => {
+    const a = mapAmendment({ ...base, field_changed: 'created', old_value: null, new_value: '5' })
+    expect(a.to).toBeUndefined()
+  })
+
+  it('hides plain integer old_value for legacy deleted records', () => {
+    const a = mapAmendment({ ...base, field_changed: 'deleted', old_value: '5', new_value: null })
+    expect(a.from).toBeUndefined()
+  })
+})

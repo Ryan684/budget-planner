@@ -21,7 +21,7 @@ def test_create_logs_amendment(db_session):
     assert logs[0].entity_id == bill.id
     assert logs[0].field_changed == "created"
     assert logs[0].old_value is None
-    assert logs[0].new_value == str(bill.id)
+    assert logs[0].new_value == "Mortgage (£1100.00)"
     assert logs[0].reason is None
     assert logs[0].source == "user"
     assert logs[0].month_id == month.id
@@ -93,7 +93,7 @@ def test_delete_logs_and_removes_row(db_session):
     logs = _amendments(db_session)
     assert len(logs) == 1
     assert logs[0].field_changed == "deleted"
-    assert logs[0].old_value == str(bill_id)
+    assert logs[0].old_value == "Boiler (£120.00)"
     assert logs[0].new_value is None
     assert logs[0].entity_id == bill_id
     assert logs[0].month_id == month.id
