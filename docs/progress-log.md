@@ -7,13 +7,40 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** ✅ Phase 2 (Core UI) — complete (code/tests/mutation gates green; live-app gates T066–T068 deferred — need a running backend + browser)
-**Last updated:** 2026-05-31
-**Next session goal:** Run the deferred live-app verification (T066–T068) — boot `backend` + `frontend`, walk the `specs/002-core-ui/quickstart.md` smoke checklist and the mobile-viewport/visual-fidelity passes — then begin Phase 3 (Claude integration): `/speckit-specify` for `003-claude-integration`.
+**Phase:** ✅ Phase 2 (Core UI) — complete (code/tests/mutation gates green; live-app gates T066–T068 deferred — need a running backend + browser). Post-implementation bug fixes applied 2026-06-14; PR #4 open.
+**Last updated:** 2026-06-14
+**Next session goal:** Merge PR #4 → `main`, then run the deferred live-app gates (T066–T068), then begin Phase 3: `/speckit-specify` for `003-claude-integration`.
 
 ---
 
 ## Phase Completion Log
+
+### ✅ Phase 2 — Core UI post-implementation bug fixes (2026-06-14)
+
+Two bugs found during live testing, fixed in a follow-up commit on the same branch (PR #4):
+
+**Bug 1 — Amendments log showed nothing (bare entity IDs)**
+All 5 dev-DB rows had been written before the previous session's `_entity_summary` fix. Their
+`new_value` was a plain integer (`"1"`, `"2"`, etc.), which `getLifecycleValue` correctly filtered,
+leaving the page empty. Fix: dropped and recreated the dev DB from the updated schema (no migration
+needed at this stage of development).
+
+**Bug 2 — Field-update amendments had no entity context**
+`update_entity` logged `field_changed="amount"` with numeric old/new values but no record of
+*which* bill or income entry was changed. Fix: added `entity_label TEXT` (nullable) to the
+`Amendment` model; all three CRUD helpers (`create_entity`, `update_entity`, `delete_entity`) now
+pass `getattr(entity, "label", None)`. The amendments screen shows the label inline for update
+events only — lifecycle events already embed the name in their summary value.
+
+Files changed: `backend/models.py`, `backend/crud.py`, `backend/schemas.py`,
+`backend/tests/test_amendment_logging.py`, `frontend/src/api/types.ts`,
+`frontend/src/lib/amendments.ts`, `frontend/src/lib/__tests__/amendments.test.ts`,
+`frontend/src/screens/Amendments.tsx`, `frontend/src/screens/Amendments.module.css`.
+
+**Quality gates (post-fix):** `ruff` clean · `pytest` 72/72 · ESLint + `tsc` clean · Vitest 144/144.
+
+**SDD housekeeping:** three Gherkin scenarios added to `docs/budget-planner.feature` under
+Amendments Log to capture the entity-name requirement that was implicit but unspecified.
 
 ### ✅ Phase 2 — Core UI (2026-05-31)
 
@@ -110,6 +137,8 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | Account schema | `account_balances` has no type column | Added **`account_type`** (`current`/`savings`) | Needed so `total_savings` (in the spec's budget logic) is computable. |
 | Amendment scope | Feature file asserts logging on *edits* | Log **all** writes (create/edit/delete) | CLAUDE.md "every write logged" + append-only audit principle. |
 | Account type selector (Phase 2) | research.md §8 anticipated a `current`/`savings` picker in the account sheet | **Deferred** — `ItemSheet` account mode collects label + balance only; `account_type` defaults server-side | No Phase 2 Gherkin scenario exercises the savings/current split; keeps the sheet minimal. Revisit if a savings-vs-current UI breakdown is wanted. |
+| Amendment entity context | Feature file said "each entry shows source, field changed, old value, new value, reason, and timestamp" — entity name was absent | Added `entity_label` column to `Amendment`; store entity name on every write; display it in the UI for field-update events | Found during live testing: without the label you can't tell which bill or income entry was changed. Three Gherkin scenarios added retroactively to capture this requirement. |
+| Dev DB migration strategy | N/A (early development) | Drop and recreate dev DB when schema changes rather than writing migration scripts | Too early in development for migrations to be worthwhile; schema is still fluid. Migrations will be necessary before any production deploy. |
 | `vitest/config` import | scaffolded `vite.config.ts` used `/// <reference types="vitest" />` + `defineConfig` from `vite` | Import `defineConfig` from **`vitest/config`** | The triple-slash ref isn't picked up by `tsconfig.node.json` (`types: ["node"]`) during `tsc -b`, so the `test` key failed to type-check at build. |
 
 ## Known issues / intentional oddities (do NOT "fix")
@@ -121,8 +150,9 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 
 ## Starting point for next session (finish Phase 2 verification → Phase 3)
 
-1. **Finish the deferred Phase 2 live-app gates (T066–T068)** — these need a running stack, which
-   the cloud container couldn't provide:
+1. **Merge PR #4** (`claude/budget-planner-spec-phase-2-hChzu` → `main`) — the post-implementation
+   bug fixes are pushed and all quality gates are green.
+2. **Finish the deferred Phase 2 live-app gates (T066–T068)** — these need a running stack:
    - Terminal 1: `cd backend && uvicorn main:app --reload --port 8000` (seed a month + a few
      income/bills/accounts via `/docs` or the UI).
    - Terminal 2: `cd frontend && npm run dev`, open `http://localhost:5173`.
@@ -130,8 +160,6 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
    - T067: walk each screen side-by-side with `docs/mockup/` and reconcile spacing/tones.
    - T068: run the `specs/002-core-ui/quickstart.md` smoke checklist end-to-end.
    - Tick T066–T068 in `specs/002-core-ui/tasks.md` once verified.
-2. **Open the Phase 2 PR** (one feature = one branch = one PR) from
-   `claude/budget-planner-spec-phase-2-hChzu` → `main` once the live gates pass.
 3. **Begin Phase 3 (Claude integration):** `/speckit-specify` for `003-claude-integration`
    (chat UI, context injection, confirm-then-act direct writes, session-scoped undo), then
    `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`. Runtime model is
