@@ -14,9 +14,10 @@ const mockAmendments = [
     month_id: 2,
     entity_type: 'income' as const,
     entity_id: 1,
+    entity_label: 'Ryan Salary',
     field_changed: 'created',
     old_value: null,
-    new_value: null,
+    new_value: 'Ryan Salary (£3,850.00)',
     reason: 'Initial entry',
     source: 'user' as const,
     amended_at: '2024-06-01T10:00:00Z',
@@ -26,6 +27,7 @@ const mockAmendments = [
     month_id: 2,
     entity_type: 'bill' as const,
     entity_id: 3,
+    entity_label: 'Electricity',
     field_changed: 'amount',
     old_value: '1200',
     new_value: '1300',
@@ -110,6 +112,25 @@ describe('Amendments screen', () => {
     await waitFor(() => {
       expect(screen.getByText('Rent increase')).toBeTruthy()
     })
+  })
+
+  it('shows entity label for field-update events', async () => {
+    render(<AmendmentsScreen activeMonthId={2} onBack={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Electricity')).toBeTruthy())
+  })
+
+  it('does not show entity label inline for lifecycle events', async () => {
+    render(<AmendmentsScreen activeMonthId={2} onBack={vi.fn()} />)
+    await waitFor(() => screen.getByText('Created'))
+    // "Ryan Salary" appears only in the summary value, not as a separate label span
+    // We check that exactly one instance appears (in the fromTo value, not duplicated)
+    const matches = screen.getAllByText(/Ryan Salary/)
+    expect(matches).toHaveLength(1)
+  })
+
+  it('shows lifecycle summary in the from/to area for created events', async () => {
+    render(<AmendmentsScreen activeMonthId={2} onBack={vi.fn()} />)
+    await waitFor(() => expect(screen.getByText('Ryan Salary (£3,850.00)')).toBeTruthy())
   })
 
   it('calls onBack when back button is pressed', async () => {
