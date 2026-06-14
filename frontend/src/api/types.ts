@@ -136,6 +136,7 @@ export interface AmendmentRead {
   month_id: number | null
   entity_type: EntityType
   entity_id: number
+  entity_label: string | null // human-readable name of the affected entity
   field_changed: string // "created" | "deleted" | a field name e.g. "amount"
   old_value: string | null // stringified by the API
   new_value: string | null // stringified by the API

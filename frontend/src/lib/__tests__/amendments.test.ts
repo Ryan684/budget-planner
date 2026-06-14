@@ -7,6 +7,7 @@ const base: AmendmentRead = {
   month_id: 1,
   entity_type: 'income',
   entity_id: 10,
+  entity_label: 'Ryan Salary',
   field_changed: 'amount',
   old_value: '1000.0',
   new_value: '1500.0',
@@ -98,6 +99,33 @@ describe('mapAmendment entity type', () => {
   it('passes through income entity_type', () => {
     const a = mapAmendment({ ...base, entity_type: 'income' })
     expect(a.entityType).toBe('income')
+  })
+})
+
+describe('mapAmendment entityLabel and isLifecycle', () => {
+  it('passes through entity_label', () => {
+    const a = mapAmendment({ ...base, entity_label: 'Electricity' })
+    expect(a.entityLabel).toBe('Electricity')
+  })
+
+  it('passes through null entity_label', () => {
+    const a = mapAmendment({ ...base, entity_label: null })
+    expect(a.entityLabel).toBeNull()
+  })
+
+  it('isLifecycle is false for field updates', () => {
+    const a = mapAmendment({ ...base, field_changed: 'amount' })
+    expect(a.isLifecycle).toBe(false)
+  })
+
+  it('isLifecycle is true for created events', () => {
+    const a = mapAmendment({ ...base, field_changed: 'created', old_value: null, new_value: 'Electricity (£85.00)' })
+    expect(a.isLifecycle).toBe(true)
+  })
+
+  it('isLifecycle is true for deleted events', () => {
+    const a = mapAmendment({ ...base, field_changed: 'deleted', old_value: 'Electricity (£85.00)', new_value: null })
+    expect(a.isLifecycle).toBe(true)
   })
 })
 

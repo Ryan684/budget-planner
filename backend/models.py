@@ -94,6 +94,7 @@ class Amendment(Base):
     )
     entity_type: Mapped[str] = mapped_column(String, nullable=False)
     entity_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    entity_label: Mapped[str | None] = mapped_column(String, nullable=True)
     field_changed: Mapped[str] = mapped_column(String, nullable=False)
     old_value: Mapped[str | None] = mapped_column(Text, nullable=True)
     new_value: Mapped[str | None] = mapped_column(Text, nullable=True)

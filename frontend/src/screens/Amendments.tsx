@@ -43,6 +43,9 @@ export function AmendmentsScreen({ activeMonthId, onBack }: AmendmentsScreenProp
                     <div>
                       <span className={styles.verb}>{v.verb}</span>
                       <span className={styles.entityTag}>{v.entityType}</span>
+                      {!v.isLifecycle && v.entityLabel && (
+                        <span className={styles.entityLabel}>{v.entityLabel}</span>
+                      )}
                     </div>
                     {(v.from !== undefined || v.to !== undefined) && (
                       <div className={styles.fromTo}>

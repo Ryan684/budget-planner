@@ -182,6 +182,7 @@ class AmendmentRead(BaseModel):
     month_id: int | None
     entity_type: EntityType
     entity_id: int
+    entity_label: str | None
     field_changed: str
     old_value: str | None
     new_value: str | None

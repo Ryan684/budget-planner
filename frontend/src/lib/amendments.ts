@@ -7,6 +7,8 @@ export interface AmendmentView {
   id: number
   verb: string
   entityType: string
+  entityLabel: string | null
+  isLifecycle: boolean
   sourceLabel: 'You' | 'Claude'
   from: number | string | undefined
   to: number | string | undefined
@@ -46,6 +48,8 @@ export function mapAmendment(a: AmendmentRead): AmendmentView {
     id: a.id,
     verb,
     entityType: a.entity_type,
+    entityLabel: a.entity_label,
+    isLifecycle,
     sourceLabel: a.source === 'claude' ? 'Claude' : 'You',
     from: a.field_changed === 'deleted'
       ? getLifecycleValue(a.old_value)

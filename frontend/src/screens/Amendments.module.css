@@ -70,6 +70,13 @@
   margin-left: 6px;
 }
 
+.entityLabel {
+  font-size: 13px;
+  color: var(--ink-2);
+  font-weight: 500;
+  margin-left: 6px;
+}
+
 .fromTo {
   font-size: 13px;
   color: var(--ink-2);
