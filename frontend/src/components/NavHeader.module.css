@@ -1,0 +1,50 @@
+.header {
+  background: var(--navy);
+  color: #fff;
+  flex-shrink: 0;
+  padding: 54px 16px 0;
+  position: relative;
+  z-index: 5;
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  min-height: 36px;
+  gap: 8px;
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #c5cee0;
+  margin-left: -6px;
+  font-size: 15px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+
+.backBtn:active { transform: scale(0.97); }
+
+.spacer { flex: 1; }
+
+.titleRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  padding: 6px 2px 18px;
+  gap: 12px;
+}
+
+.titleRowCompact {
+  padding-bottom: 16px;
+}
+
+.title {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}

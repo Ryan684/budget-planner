@@ -1,0 +1,39 @@
+.track {
+  border-radius: 999px;
+  overflow: hidden;
+  display: flex;
+}
+
+.bills {
+  /* width set inline */
+  background: var(--navy-500);
+}
+
+.billsOver {
+  background: var(--red);
+}
+
+.billsDark {
+  background: rgba(255, 255, 255, 0.92);
+}
+
+.surplus {
+  /* width set inline */
+  background: repeating-linear-gradient(
+    45deg,
+    var(--navy-tint),
+    var(--navy-tint) 4px,
+    #dfe4ee 4px,
+    #dfe4ee 8px
+  );
+}
+
+.surplusDark {
+  background: repeating-linear-gradient(
+    45deg,
+    rgba(255, 255, 255, 0.3),
+    rgba(255, 255, 255, 0.3) 4px,
+    rgba(255, 255, 255, 0.16) 4px,
+    rgba(255, 255, 255, 0.16) 8px
+  );
+}

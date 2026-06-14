@@ -1,0 +1,104 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: var(--bg);
+}
+
+.scroll::-webkit-scrollbar { display: none; }
+
+.content {
+  padding: 16px 16px 28px;
+}
+
+.totalCard {
+  margin-bottom: 18px;
+}
+
+.totalCardTop {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.totalCardLeft {}
+
+.totalLabel {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.totalSub {
+  font-size: 12.5px;
+  color: var(--ink-3);
+  margin-top: 3px;
+}
+
+.totalCardBottom {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--line-2);
+}
+
+.surplusLabel {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+/* Category group */
+.group {
+  margin-bottom: 16px;
+}
+
+.groupHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 2px 4px 8px;
+}
+
+.groupTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.groupDot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+.addBtn {
+  margin-top: 8px;
+}
+
+.addHeaderBtn {
+  color: #fff;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+
+.addHeaderBtn:active { transform: scale(0.95); }

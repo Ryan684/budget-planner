@@ -20,11 +20,23 @@ def _stringify(value: Any) -> str | None:
     return str(value)
 
 
+def _entity_summary(entity) -> str:
+    """Human-readable summary for amendment log lifecycle (created/deleted) entries."""
+    label = getattr(entity, "label", None) or f"#{entity.id}"
+    amount = getattr(entity, "amount", None)
+    balance = getattr(entity, "balance", None)
+    value = amount if amount is not None else balance
+    if value is not None:
+        return f"{label} (£{value:.2f})"
+    return label
+
+
 def _log(
     session: Session,
     *,
     entity_type: str,
     entity_id: int,
+    entity_label: str | None,
     field_changed: str,
     old_value: Any,
     new_value: Any,
@@ -37,6 +49,7 @@ def _log(
             month_id=month_id,
             entity_type=entity_type,
             entity_id=entity_id,
+            entity_label=entity_label,
             field_changed=field_changed,
             old_value=_stringify(old_value),
             new_value=_stringify(new_value),
@@ -62,9 +75,10 @@ def create_entity(
         session,
         entity_type=entity_type,
         entity_id=entity.id,
+        entity_label=getattr(entity, "label", None),
         field_changed="created",
         old_value=None,
-        new_value=entity.id,
+        new_value=_entity_summary(entity),
         month_id=month_id,
         source=source,
         reason=reason,
@@ -97,6 +111,7 @@ def update_entity(
             session,
             entity_type=entity_type,
             entity_id=entity.id,
+            entity_label=getattr(entity, "label", None),
             field_changed=field,
             old_value=old_value,
             new_value=new_value,
@@ -127,8 +142,9 @@ def delete_entity(
         session,
         entity_type=entity_type,
         entity_id=entity_id,
+        entity_label=getattr(entity, "label", None),
         field_changed="deleted",
-        old_value=entity_id,
+        old_value=_entity_summary(entity),
         new_value=None,
         month_id=month_id,
         source=source,

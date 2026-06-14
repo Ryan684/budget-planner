@@ -1,0 +1,29 @@
+.toggle {
+  width: 50px;
+  height: 30px;
+  border-radius: 99px;
+  padding: 3px;
+  display: flex;
+  align-items: center;
+  background: #cfd4de;
+  transition: background 0.18s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.on {
+  background: var(--navy);
+  justify-content: flex-end;
+}
+
+.off {
+  justify-content: flex-start;
+}
+
+.thumb {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+}

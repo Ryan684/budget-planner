@@ -1,0 +1,167 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: var(--bg);
+}
+
+.scroll::-webkit-scrollbar { display: none; }
+
+.content {
+  padding: 16px 16px 28px;
+}
+
+/* Month list card */
+.monthCard {
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.monthCardActive {
+  outline: 2px solid var(--navy);
+}
+
+.monthCardHeader {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.monthCardTitleRow {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.monthLabel {
+  font-size: 16.5px;
+  font-weight: 700;
+}
+
+.currentBadge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--green);
+  background: var(--green-bg);
+  padding: 2px 8px;
+  border-radius: 99px;
+  border: 1px solid var(--green-line);
+}
+
+.monthFigs {
+  display: flex;
+  gap: 22px;
+  margin-top: 12px;
+}
+
+.miniLabel {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
+/* Carry-forward / create */
+.createContent {
+  padding: 16px 16px 100px;
+}
+
+.infoCard {
+  margin-bottom: 16px;
+  background: var(--navy-tint);
+  border: 1px solid var(--line);
+}
+
+.infoCardTitle {
+  font-size: 14.5px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+.infoCardDesc {
+  font-size: 13px;
+  color: var(--ink-2);
+  line-height: 1.45;
+}
+
+/* Carry row */
+.carryRow {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 11px 2px;
+  border-bottom: 1px solid var(--line-2);
+  transition: opacity 0.15s ease;
+}
+
+.carryRow:last-child {
+  border-bottom: none;
+}
+
+.carryRowExcluded {
+  opacity: 0.4;
+}
+
+.checkBtn {
+  width: 22px;
+  height: 22px;
+  border-radius: 6px;
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+
+.checkBtn:active { transform: scale(0.95); }
+
+.checkBtnOn {
+  background: var(--navy);
+  color: #fff;
+  border: none;
+}
+
+.checkBtnOff {
+  background: transparent;
+  border: 1.5px solid var(--line);
+  color: transparent;
+}
+
+.carryLabel {
+  flex: 1;
+  font-size: 14.5px;
+  font-weight: 500;
+}
+
+.carryAmtWrapper {
+  width: 96px;
+}
+
+/* Footer */
+.footer {
+  flex-shrink: 0;
+  padding: 12px 16px 24px;
+  background: var(--card);
+  border-top: 1px solid var(--line);
+}
+
+.projectedRow {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  font-size: 13.5px;
+}
+
+.projectedLabel {
+  color: var(--ink-2);
+  font-weight: 600;
+}

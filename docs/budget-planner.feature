@@ -446,6 +446,26 @@ Feature: Amendments Log
     Then the bill is removed
     And its amendment history remains in the log
 
+  # --- Added after Phase 2 testing: entity name must be visible in every amendment entry ---
+
+  Scenario: Create and delete amendments identify the entity by name
+    Given I add a bill labelled "Mortgage" for £1,100
+    When I view the amendments log
+    Then the entry shows "Mortgage (£1,100.00)" as the created value
+    And the entity type "bill" is shown
+
+  Scenario: Delete amendment for a bill identifies the bill by name
+    Given a bill "Mortgage" exists for £1,100
+    When I delete the bill
+    And I view the amendments log
+    Then the entry shows "Mortgage (£1,100.00)" as the removed value
+
+  Scenario: Field-update amendment identifies the entity by name
+    Given a bill "Electricity" exists at £85
+    When I change the amount to £97
+    And I view the amendments log
+    Then the amendment shows "Electricity" alongside the old value £85 and new value £97
+
 
 Feature: Backup
 

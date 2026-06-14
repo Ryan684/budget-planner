@@ -1,0 +1,35 @@
+.wrapper {
+  display: flex;
+  align-items: center;
+  height: 48px;
+  border-radius: var(--r-btn);
+  border: 1px solid var(--line);
+  background: var(--card);
+  overflow: hidden;
+  transition: border-color 0.15s ease;
+}
+
+.wrapper:focus-within {
+  border-color: var(--navy-500);
+}
+
+.prefix {
+  font-family: var(--mono);
+  padding: 0 4px 0 14px;
+  color: var(--ink-3);
+  font-size: 17px;
+  flex-shrink: 0;
+}
+
+.input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 17px;
+  font-family: var(--mono);
+  padding: 0 14px 0 2px;
+  width: 100%;
+  font-weight: 600;
+  color: var(--ink);
+}

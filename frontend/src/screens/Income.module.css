@@ -1,0 +1,52 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: var(--bg);
+}
+
+.scroll::-webkit-scrollbar { display: none; }
+
+.content {
+  padding: 16px 16px 28px;
+}
+
+.totalCard {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 18px;
+}
+
+.totalLabel {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.addBtn {
+  margin-top: 16px;
+}
+
+.addHeaderBtn {
+  color: #fff;
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  transition: transform 0.08s ease;
+}
+
+.addHeaderBtn:active { transform: scale(0.95); }

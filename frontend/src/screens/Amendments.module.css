@@ -1,0 +1,105 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  overflow: hidden;
+}
+
+.scroll {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  background: var(--bg);
+}
+
+.scroll::-webkit-scrollbar { display: none; }
+
+.content {
+  padding: 16px 16px 28px;
+}
+
+/* Amendment entry */
+.entryCard {
+  margin-bottom: 10px;
+}
+
+.entryRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sourcePill {
+  font-size: 10.5px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 99px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.sourcePillUser {
+  background: var(--navy-tint);
+  color: var(--navy);
+  border: 1px solid var(--line);
+}
+
+.sourcePillClaude {
+  background: var(--green-bg);
+  color: var(--green);
+  border: 1px solid var(--green-line);
+}
+
+.entryBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.verb {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.entityTag {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  font-weight: 500;
+  margin-left: 6px;
+}
+
+.entityLabel {
+  font-size: 13px;
+  color: var(--ink-2);
+  font-weight: 500;
+  margin-left: 6px;
+}
+
+.fromTo {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-top: 3px;
+}
+
+.reason {
+  font-size: 13px;
+  color: var(--ink-2);
+  font-style: italic;
+  margin-top: 2px;
+}
+
+.ts {
+  font-size: 11.5px;
+  color: var(--ink-3);
+  margin-top: 4px;
+}
+
+/* Empty state */
+.emptyWrap {
+  padding: 48px 16px;
+  text-align: center;
+  color: var(--ink-3);
+  font-size: 14px;
+}

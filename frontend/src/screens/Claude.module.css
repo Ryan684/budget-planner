@@ -1,0 +1,32 @@
+.root {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.header {
+  background: var(--navy);
+  color: #fff;
+  flex-shrink: 0;
+  padding: 52px 16px 18px;
+}
+
+.title {
+  margin: 0;
+  font-size: 27px;
+  font-weight: 700;
+}
+
+.body {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+}
+
+.placeholder {
+  font-size: 16px;
+  color: var(--ink-3);
+  font-weight: 500;
+}
