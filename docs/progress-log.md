@@ -7,13 +7,43 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** ✅ Phase 2 (Core UI) — complete (code/tests/mutation gates green; live-app gates T066–T068 deferred — need a running backend + browser). Post-implementation bug fixes applied 2026-06-14; PR #4 open.
-**Last updated:** 2026-06-14
-**Next session goal:** Merge PR #4 → `main`, then run the deferred live-app gates (T066–T068), then begin Phase 3: `/speckit-specify` for `003-claude-integration`.
+**Phase:** ✅ Phase 2 (Core UI) — complete (code/tests/mutation gates green; live-app gates T066–T068 deferred — need a running backend + browser). 🟦 Phase 3 **spec drafted** (`specs/003-claude-integration/`) and AI-boundary ADR widened — no Phase 3 code yet. PR #4 (Phase 2) still open.
+**Last updated:** 2026-06-18
+**Next session goal:** Merge PR #4 → `main`, run the deferred live-app gates (T066–T068), then `/speckit-plan` for `003-claude-integration` — resolving the **account-balance-history open question** (see the 2026-06-18 entry) before locking the plan.
 
 ---
 
 ## Phase Completion Log
+
+### 🟦 Phase 3 — Claude Integration: spec + AI-boundary ADR amendment (2026-06-18)
+
+Spec-only session, no code. Branch `claude/speckit-specify-web-check-1xj6ix`.
+
+**`/speckit-specify` → `specs/003-claude-integration/`** — drafted `spec.md` (4 prioritised user
+stories: P1 querying, P2 confirm-then-act writes, P3 undo, P3 cross-month trends; FR-001–FR-022;
+SC-001–SC-007) and `checklists/requirements.md` (all items pass). `.specify/feature.json` repointed
+from `specs/002-core-ui` → `specs/003-claude-integration`.
+
+**AI-boundary ADR widened (user decision).** Claude's *read* context expanded from "current month +
+one explicitly requested prior month" to the household's **full multi-month financial picture** (all
+months' budgets + all account balances and their history). Writes are unchanged — current month
+only; previous months stay read-only. Boundary now excludes only the raw DB file, secrets, `.env`,
+and PIN. Amended in lockstep across all four governing docs: constitution Principle IV (renamed
+*Privacy & Minimal AI Context* → *Privacy & AI Data Boundary*, **v1.0.0 → v1.1.0**),
+`docs/budget-planner-spec.md` (AI Boundary section + Phase 3 / Claude-screen lines), `CLAUDE.md`
+(Privacy boundary + runtime system prompt), and the 003 spec.
+
+**⚠ Open question for `/speckit-plan` (flagged, NOT resolved):** "account balance history" is not a
+first-class table. `account_balances` is mutated in place (current balance only); past balances exist
+only as reconstructed `field_changed="balance"` rows in the append-only `amendments` log. That
+reconstruction is **partial**: initial/`create` balances aren't cleanly captured (create amendments
+log an entity-id-style `new_value`, not a numeric balance), pre-logging values are absent, a balance
+change and its `as_of_date` change land in *separate* amendment rows correlated only by `amended_at`,
+and the cadence is irregular (whenever the user happened to update). Adequate for *current-balance*
+forecasting (e.g. "save £500/mo, when do we hit £20k?"), but **not** a reliable time series for
+"plot our savings growth over 12 months." Planning must decide whether to add a dedicated append-only
+balance-snapshot table (e.g. `account_balance_snapshots(account_id, balance, as_of_date, recorded_at)`)
+written on every balance update.
 
 ### ✅ Phase 2 — Core UI post-implementation bug fixes (2026-06-14)
 
@@ -140,6 +170,7 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | Amendment entity context | Feature file said "each entry shows source, field changed, old value, new value, reason, and timestamp" — entity name was absent | Added `entity_label` column to `Amendment`; store entity name on every write; display it in the UI for field-update events | Found during live testing: without the label you can't tell which bill or income entry was changed. Three Gherkin scenarios added retroactively to capture this requirement. |
 | Dev DB migration strategy | N/A (early development) | Drop and recreate dev DB when schema changes rather than writing migration scripts | Too early in development for migrations to be worthwhile; schema is still fluid. Migrations will be necessary before any production deploy. |
 | `vitest/config` import | scaffolded `vite.config.ts` used `/// <reference types="vitest" />` + `defineConfig` from `vite` | Import `defineConfig` from **`vitest/config`** | The triple-slash ref isn't picked up by `tsconfig.node.json` (`types: ["node"]`) during `tsc -b`, so the `test` key failed to type-check at build. |
+| AI context boundary (Phase 3) | spec + constitution: Claude sent current month + one explicitly requested prior month ("minimal context") | Widened to the **full multi-month financial picture** (all months + account-balance history), read-only; writes still current-month only | User self-hosts and consents to analysis of their own finances; cross-month context is what makes forecasting/trends useful. Constitution bumped **v1.1.0**; all four governing docs amended together (2026-06-18). |
 
 ## Known issues / intentional oddities (do NOT "fix")
 
