@@ -84,9 +84,23 @@ Not month-scoped — these are persistent records updated in place whenever the 
 |---|---|---|
 | id | INTEGER PK | |
 | label | TEXT | e.g. "Joint current", "Savings", "Ryan ISA" |
-| balance | REAL | Manually recorded balance |
+| balance | REAL | Current balance |
 | as_of_date | DATE | Date balance was recorded |
+| account_type | TEXT | "current" or "savings" |
 | notes | TEXT | Optional |
+
+### `account_balance_snapshots`
+Append-only time-series record. A row is written every time an account balance is updated.
+This is what gives Claude a reliable, correctly-dated history for trend analysis and
+forecasting — the `account_balances` table holds only the current value.
+
+| Field | Type | Notes |
+|---|---|---|
+| id | INTEGER PK | |
+| account_id | FK → account_balances | |
+| balance | REAL | Balance at the time of recording |
+| as_of_date | DATE | Date the balance was observed in the banking app |
+| recorded_at | TIMESTAMP | When the row was written (UTC) |
 
 ### `amendments`
 | Field | Type | Notes |

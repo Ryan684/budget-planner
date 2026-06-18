@@ -33,17 +33,12 @@ and PIN. Amended in lockstep across all four governing docs: constitution Princi
 `docs/budget-planner-spec.md` (AI Boundary section + Phase 3 / Claude-screen lines), `CLAUDE.md`
 (Privacy boundary + runtime system prompt), and the 003 spec.
 
-**⚠ Open question for `/speckit-plan` (flagged, NOT resolved):** "account balance history" is not a
-first-class table. `account_balances` is mutated in place (current balance only); past balances exist
-only as reconstructed `field_changed="balance"` rows in the append-only `amendments` log. That
-reconstruction is **partial**: initial/`create` balances aren't cleanly captured (create amendments
-log an entity-id-style `new_value`, not a numeric balance), pre-logging values are absent, a balance
-change and its `as_of_date` change land in *separate* amendment rows correlated only by `amended_at`,
-and the cadence is irregular (whenever the user happened to update). Adequate for *current-balance*
-forecasting (e.g. "save £500/mo, when do we hit £20k?"), but **not** a reliable time series for
-"plot our savings growth over 12 months." Planning must decide whether to add a dedicated append-only
-balance-snapshot table (e.g. `account_balance_snapshots(account_id, balance, as_of_date, recorded_at)`)
-written on every balance update.
+**✅ Resolved (2026-06-18):** A dedicated append-only `account_balance_snapshots(id, account_id,
+balance, as_of_date, recorded_at)` table will be added. A row is written on every balance update,
+giving Claude a correctly-dated, first-class time series for trend analysis. Added to the project
+spec data model, FR-023 and a new Key Entity added to the 003 spec, and a new Spec Divergence row
+added below. Phase 3 planning must include the schema addition and the write-path change in
+`accounts.py`/`crud.py`.
 
 ### ✅ Phase 2 — Core UI post-implementation bug fixes (2026-06-14)
 
@@ -171,6 +166,7 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | Dev DB migration strategy | N/A (early development) | Drop and recreate dev DB when schema changes rather than writing migration scripts | Too early in development for migrations to be worthwhile; schema is still fluid. Migrations will be necessary before any production deploy. |
 | `vitest/config` import | scaffolded `vite.config.ts` used `/// <reference types="vitest" />` + `defineConfig` from `vite` | Import `defineConfig` from **`vitest/config`** | The triple-slash ref isn't picked up by `tsconfig.node.json` (`types: ["node"]`) during `tsc -b`, so the `test` key failed to type-check at build. |
 | AI context boundary (Phase 3) | spec + constitution: Claude sent current month + one explicitly requested prior month ("minimal context") | Widened to the **full multi-month financial picture** (all months + account-balance history), read-only; writes still current-month only | User self-hosts and consents to analysis of their own finances; cross-month context is what makes forecasting/trends useful. Constitution bumped **v1.1.0**; all four governing docs amended together (2026-06-18). |
+| Account balance history (Phase 3) | `account_balances` holds only the current balance; history was to be reconstructed from `amendments` | Add append-only **`account_balance_snapshots(id, account_id, balance, as_of_date, recorded_at)`** table; write a row on every balance update | Amendments log is not a reliable time series for balance history: create-amendments don't record a numeric opening balance, balance + as_of_date land in separate rows, and `amended_at` ≠ `as_of_date`. Snapshot table is the correct structure. |
 
 ## Known issues / intentional oddities (do NOT "fix")
 

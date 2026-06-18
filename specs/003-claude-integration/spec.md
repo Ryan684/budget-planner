@@ -242,6 +242,10 @@ and no error.
   account-balance history available to Claude for reading, analysis, and forecasting.
 - **FR-021**: A comparison or trend request with no prior month available MUST yield a plain
   explanation and MUST NOT error or return empty data.
+- **FR-023**: Every account balance update MUST write an append-only snapshot record capturing the
+  balance value, its observed date, and the time it was recorded, so Claude has a reliable,
+  correctly-dated time series for trend analysis — rather than depending on reconstruction from the
+  general amendments log.
 
 #### Privacy boundary
 
@@ -256,11 +260,14 @@ and no error.
   the Claude screen. Holds the running dialogue and the list of Claude writes made this session
   (the basis for undo). Not persisted across sessions.
 - **Budget context**: The structured snapshot sent to Claude for a request — every month's income,
-  bills, and surplus, all account balances with as-of dates and their historical changes, and the
-  amendments log. The privacy boundary's payload (excludes the raw database file, secrets, and PIN).
+  bills, and surplus, all account balances with as-of dates, the full balance-snapshot history, and
+  the amendments log. The privacy boundary's payload (excludes the raw database file, secrets, and PIN).
 - **Claude write / amendment**: A change made by Claude to an income entry, bill, or account
   balance, recorded in the existing amendments log with source "claude", old/new values, and a
   reason. The unit that undo reverts.
+- **Account balance snapshot**: An append-only record written on every balance update, storing the
+  account, balance value, observed date (`as_of_date`), and write timestamp. The first-class time
+  series that backs cross-month balance trend analysis.
 
 ## Success Criteria *(mandatory)*
 
@@ -303,6 +310,11 @@ and no error.
   financial picture for analysis and forecasting (widened from the original "current month + one
   named prior month" boundary on 2026-06-18 — see constitution Principle IV v1.1.0). The read-only
   rule constrains writes only: Claude still cannot write to any month but the active current one.
+- **Account balance history uses a dedicated snapshot table**: Rather than reconstructing history
+  from the general amendments log (which is unreliable for this purpose — see progress log
+  2026-06-18), every balance update writes an append-only row to `account_balance_snapshots`. This
+  is a schema addition that Phase 3 planning must include; it requires a backend migration/schema
+  change and an update to the account-update write path.
 - **Stale threshold reuses Phase 2's 30-day rule**: A balance is "stale" at ≥30 days, matching the
   dashboard's existing staleness treatment.
 - **The runtime model is `claude-sonnet-4-6`**: Per the project constitution and spec, the in-app
