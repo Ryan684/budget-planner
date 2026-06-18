@@ -195,12 +195,16 @@ When creating a new month, offer to carry forward items where `is_recurring = TR
 ## Claude Integration
 
 ### Privacy boundary (ADR)
-Claude is called only from the `/api/claude` endpoint. Each request sends:
-- Current month's income, bills, account balances, and amendments as structured JSON
+Claude is called only from the `/api/claude` endpoint. Each request sends the household's full
+financial picture as structured JSON so Claude can analyse and forecast across months:
+- Every month's income, bills, surplus, and amendments
+- All account balances and their historical changes
 - The user's message
 - The conversation history for the current session
 
-**Never send:** the raw database, prior months' data (unless the user explicitly asks — then fetch and append only that month), or any data beyond what is needed to answer the current question.
+**Never send:** the raw database file, application secrets, `.env`, or the PIN — only the
+structured financial data above. Writes are confined to the active current month — previous
+months are read-only. (Amended 2026-06-18; mirrored in constitution Principle IV v1.1.0.)
 
 ### Write behaviour
 Claude can write directly to the database via tool calls exposed by the backend. The confirm-then-act pattern is enforced in the system prompt — Claude must state its intended action and effect before executing.
@@ -216,8 +220,10 @@ The frontend tracks Claude writes within the current session. The "Undo last Cla
 ### System prompt
 ```
 You are a helpful family budget assistant. You have access to the
-current monthly budget below and can read and write to it directly
-using the tools available to you.
+household's full financial history below (all months, plus account
+balances and their changes) and can read it for analysis and
+forecasting. You can write directly to the current month using the
+tools available to you.
 
 Rules:
 - Always state what you are about to do and its effect on
@@ -229,7 +235,7 @@ Rules:
 - Previous months are read-only — never write to them
 - Be concise — the user is on a phone
 
-Current budget:
+Financial data (all months and accounts):
 {budget_json}
 ```
 

@@ -155,7 +155,7 @@ total_balances = sum of all account_balances
 
 **Claude**
 - Chat-style interface
-- Full month context sent with each query (income, bills, surplus, account balances)
+- Full financial context sent with each query (all months' income, bills, surplus, and account balances with history)
 - Claude can read and write directly
 - "Undo last Claude change" button visible whenever Claude has made a write in the current session
 - Conversation resets per session (no persistent chat history in MVP)
@@ -175,16 +175,24 @@ total_balances = sum of all account_balances
 
 ### AI Boundary (Privacy ADR)
 
-Claude is called only from the Claude screen. Each call sends:
+> **Amended 2026-06-18:** widened from "current month + one explicitly requested prior month"
+> to the full multi-month picture. Rationale: the household self-hosts and consents to analysis
+> of its own finances, and cross-month context is what makes forecasting and trend analysis
+> genuinely useful. Writes are unaffected — still current-month only. Mirrored in constitution
+> Principle IV (v1.1.0) and `CLAUDE.md`.
 
-- The structured budget for the current month (income, bills, surplus)
-- Current account balances (all accounts, with as-of dates)
-- The amendments log for the month
+Claude is called only from the Claude screen. Each call sends the household's full financial
+picture so Claude can analyse and forecast across time:
+
+- The structured budget for every month (income, bills, surplus)
+- All account balances (with as-of dates) and their historical changes
+- The amendments log
 - The user's message
 
-**What is never sent:** the raw database, prior months unless explicitly requested by the user, or any data beyond what is needed to answer the current question.
+**What is never sent:** the raw database file, application secrets, `.env`, or the PIN — only
+the structured financial data above.
 
-If the user asks about a previous month, the frontend fetches that month's data and appends it to the context — it does not send the whole database.
+Writes remain confined to the active current month — previous months are read-only.
 
 ### Write Behaviour
 
@@ -301,7 +309,7 @@ To restore: clone the backup repo, copy the DB file back to the data directory, 
 - Confirm-then-act pattern enforced in system prompt
 - Undo last Claude change implemented
 - `source` field populated on all Claude-initiated amendments
-- Minimal context ADR enforced in API call construction
+- Privacy boundary enforced in API call construction (structured multi-month financial data only — never the raw DB file, secrets, or PIN)
 
 ### Phase 4 — Backup Automation
 - Cron job script finalised and tested

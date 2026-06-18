@@ -11,14 +11,14 @@
 > from the Claude screen. The Phase 2 screens, data layer, and amendments log already exist; this
 > phase makes the "Ask Claude" entry point functional end-to-end.
 >
-> **In scope**: conversational querying over the current month (and an explicitly named previous
-> month), forecasting and scenario modelling, direct reads and writes to the live budget under a
-> confirm-then-act pattern, amendment logging of every Claude write, and a session-scoped "Undo
-> last Claude change".
+> **In scope**: conversational querying over the household's full multi-month financial picture
+> (all months, account balances and their history), forecasting and scenario modelling, direct
+> writes to the active current month under a confirm-then-act pattern, amendment logging of every
+> Claude write, and a session-scoped "Undo last Claude change".
 >
 > **Out of scope**: backup automation (Phase 4), PIN/auth (Phase 5), persistent chat history
-> across sessions, push notifications or scheduled summaries, and any data source beyond the
-> existing budget tables.
+> across sessions, push notifications or scheduled summaries, writes to any month other than the
+> current one, and any data source beyond the existing budget tables.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -41,8 +41,7 @@ balance is involved.
 **Acceptance Scenarios**:
 
 1. **Given** the current month has complete income and bills, **When** I ask "what's our surplus
-   this month?", **Then** Claude returns the correct surplus figure and references only current
-   month data.
+   this month?", **Then** Claude returns the correct surplus figure for the current month.
 2. **Given** account balances are recorded, **When** I ask "how much do we have in savings?",
    **Then** Claude returns the correct savings balance and notes its as-of date.
 3. **Given** the current surplus is £600 and total savings is £8,400, **When** I ask "if we save
@@ -134,29 +133,33 @@ repeating with multiple Claude writes reverts only the most recent.
 
 ---
 
-### User Story 4 - Comparing across months on request (Priority: P3)
+### User Story 4 - Compare and spot trends across months (Priority: P3)
 
-As a family member, I ask Claude "how does this month compare to last month?" and it pulls in the
-named previous month alongside the current one and gives a clear comparison — and if there is no
-previous month, it tells me so plainly rather than erroring.
+As a family member, I ask Claude "how does this month compare to last month?" or "how's our
+surplus trending this year?" and it answers from the full history it already has — clear
+comparisons and trends across months — and if there is no prior month yet, it tells me so plainly
+rather than erroring.
 
-**Why this priority**: Cross-month comparison is valuable analysis but secondary to single-month
-querying, and it is the one case where data beyond the current month legitimately enters Claude's
-context. It is grouped at P3 as an enhancement to the querying core.
+**Why this priority**: Cross-month comparison and trend analysis are valuable but secondary to
+single-month querying, so they sit at P3 as an enhancement to the querying core. Because Claude
+already receives the full multi-month picture (per the privacy boundary below), no special
+per-question fetch is needed.
 
-**Independent Test**: With two months of complete data, ask for a comparison — Claude reports
-income, bills, and surplus for both and contrasts them; with only one month present, the same
-question yields a graceful "no previous month" answer and no error.
+**Independent Test**: With several months of complete data, ask for a comparison and a trend —
+Claude contrasts income, bills, and surplus across the relevant months and describes the trend;
+with only one month present, a comparison question yields a graceful "no previous month" answer
+and no error.
 
 **Acceptance Scenarios**:
 
 1. **Given** at least two months exist with complete data, **When** I ask "how does this month
-   compare to last month?", **Then** Claude obtains both months' data and provides a clear
-   comparison of income, bills, and surplus.
-2. **Given** only the current month exists, **When** I ask the same question, **Then** Claude
+   compare to last month?", **Then** Claude provides a clear comparison of income, bills, and
+   surplus across those months.
+2. **Given** several months of data exist, **When** I ask about a trend (e.g. "how's our surplus
+   trending?"), **Then** Claude describes the trend using the recorded figures across months,
+   without inventing data.
+3. **Given** only the current month exists, **When** I ask a comparison question, **Then** Claude
    explains there is no previous month to compare against and does not error or return empty data.
-3. **Given** a comparison request, **When** the previous month is brought into context, **Then**
-   only that explicitly requested month is added — never the full history or raw database.
 
 ---
 
@@ -188,8 +191,9 @@ question yields a graceful "no previous month" answer and no error.
 
 - **FR-001**: The system MUST provide a chat-style Claude screen where the user can send a message
   and receive a response grounded in the current month's budget.
-- **FR-002**: Claude MUST be able to read the current month's income entries, bills, monthly
-  surplus, account balances (with as-of dates), and the month's amendments log when answering.
+- **FR-002**: Claude MUST be able to read every month's income entries, bills, and monthly
+  surplus, all account balances (with as-of dates) and their historical changes, and the
+  amendments log when answering — the household's full financial picture.
 - **FR-003**: Claude MUST answer budget questions, savings forecasts, and scenario models using
   only figures present in the data, and MUST NOT invent or approximate figures that are not
   recorded.
@@ -234,26 +238,26 @@ question yields a graceful "no previous month" answer and no error.
 
 #### Cross-month context
 
-- **FR-020**: When the user explicitly asks to compare with or reference a previous month, the
-  system MUST supply only that named month's data alongside the current month.
-- **FR-021**: A comparison request with no previous month available MUST yield a plain explanation
-  and MUST NOT error or return empty data.
+- **FR-020**: The system MUST make every month's budget (income, bills, surplus) and the full
+  account-balance history available to Claude for reading, analysis, and forecasting.
+- **FR-021**: A comparison or trend request with no prior month available MUST yield a plain
+  explanation and MUST NOT error or return empty data.
 
 #### Privacy boundary
 
-- **FR-022**: Each Claude request MUST send only the current month's budget, current account
-  balances, the month's amendments, the user's message, the session conversation, and any one
-  previous month the user explicitly requested — and MUST NOT send the raw database or unrequested
-  prior months.
+- **FR-022**: Each Claude request MUST send only the household's structured financial data — all
+  months' budgets, all account balances and their history, the amendments log, the user's message,
+  and the session conversation — and MUST NOT send the raw database file, application secrets,
+  `.env`, or the PIN.
 
 ### Key Entities *(include if feature involves data)*
 
 - **Conversation session**: An in-memory, session-scoped exchange of user and Claude messages on
   the Claude screen. Holds the running dialogue and the list of Claude writes made this session
   (the basis for undo). Not persisted across sessions.
-- **Budget context**: The structured snapshot sent to Claude for a request — current month income,
-  bills, surplus, account balances with as-of dates, the month's amendments, and optionally one
-  explicitly requested previous month. The privacy boundary's payload.
+- **Budget context**: The structured snapshot sent to Claude for a request — every month's income,
+  bills, and surplus, all account balances with as-of dates and their historical changes, and the
+  amendments log. The privacy boundary's payload (excludes the raw database file, secrets, and PIN).
 - **Claude write / amendment**: A change made by Claude to an income entry, bill, or account
   balance, recorded in the existing amendments log with source "claude", old/new values, and a
   reason. The unit that undo reverts.
@@ -272,9 +276,9 @@ question yields a graceful "no previous month" answer and no error.
   surplus/balance effect in the same response — 100% of write turns include this statement.
 - **SC-004**: "Undo last Claude change" reverts only the most recent Claude write and leaves all
   manual edits and earlier Claude writes intact in 100% of tested undo scenarios.
-- **SC-005**: No Claude request in testing transmits data beyond the defined boundary (current
-  month, current balances, this month's amendments, the session conversation, and at most one
-  explicitly requested previous month).
+- **SC-005**: No Claude request in testing transmits data beyond the defined boundary — the
+  structured financial data (all months, balances and history, amendments, session conversation)
+  is expected; the raw database file, application secrets, `.env`, and the PIN are never sent.
 - **SC-006**: Claude never writes to a previous (read-only) month in any tested attempt.
 - **SC-007**: A typical query returns a usable answer quickly enough to feel conversational on a
   phone (target: first response within a few seconds under normal conditions), and a failed
@@ -295,9 +299,10 @@ question yields a graceful "no previous month" answer and no error.
   stating the change and executing in the same turn; an explicit second user confirmation is only
   required when the request is ambiguous. "Confirm" here means Claude makes its intent visible, not
   that it blocks on a yes/no for every write.
-- **Reads of previous months are allowed, writes are not**: Comparison and historical questions may
-  pull one explicitly named previous month into context (read-only); the read-only rule constrains
-  writes, not analysis.
+- **Full-history reads, current-month writes**: Claude receives the household's full multi-month
+  financial picture for analysis and forecasting (widened from the original "current month + one
+  named prior month" boundary on 2026-06-18 — see constitution Principle IV v1.1.0). The read-only
+  rule constrains writes only: Claude still cannot write to any month but the active current one.
 - **Stale threshold reuses Phase 2's 30-day rule**: A balance is "stale" at ≥30 days, matching the
   dashboard's existing staleness treatment.
 - **The runtime model is `claude-sonnet-4-6`**: Per the project constitution and spec, the in-app
