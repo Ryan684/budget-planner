@@ -7,13 +7,57 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** ✅ Phase 2 (Core UI) — complete (code/tests/mutation gates green; live-app gates T066–T068 deferred — need a running backend + browser). 🟦 Phase 3 **spec drafted** (`specs/003-claude-integration/`) and AI-boundary ADR widened — no Phase 3 code yet. PR #4 (Phase 2) still open.
-**Last updated:** 2026-06-18
-**Next session goal:** Merge PR #4 → `main`, run the deferred live-app gates (T066–T068), then `/speckit-plan` for `003-claude-integration` — resolving the **account-balance-history open question** (see the 2026-06-18 entry) before locking the plan.
+**Phase:** ✅ Phase 3 (Claude Integration) — **code + tests + linters green** (backend 110 pytest, frontend 153 vitest; ruff + ESLint + tsc clean). Mutation gate (mutmut/Stryker) and live-app validation (T036, needs a real `ANTHROPIC_API_KEY` + browser) still outstanding. Phase 2 live-app gates T066–T068 and PR #4 also still open.
+**Last updated:** 2026-06-20
+**Next session goal:** Finish the Phase 3 quality gates — run frontend Stryker (T034), review the mutmut survivors and record any accepted ones in `MUTANTS.md` (T033), then do the live-app validation (T036) with a real key. After that, open the Phase 3 PR. (Phase 2 PR #4 + T066–T068 remain open from before.)
 
 ---
 
 ## Phase Completion Log
+
+### ✅ Phase 3 — Claude Integration: implementation (2026-06-20)
+
+`/speckit-clarify → plan → tasks → analyze → implement` on branch
+`claude/speckit-specify-web-check-1xj6ix`. All 37 tasks T001–T032 done; T033–T037 (quality
+gates / handoff) partially done — see Current Status. Anthropic API is **mocked in every test**.
+
+**New backend modules**
+- `claude_context.py` — `build_budget_context(session)` assembles the privacy-bounded payload
+  (all months + income/bills/surplus, accounts with `is_stale` via the 30-day rule, the
+  `balance_snapshots` series, and the amendments log). Deterministic key order. Excludes the DB
+  file, secrets, `.env`, and PIN (asserted in `test_claude_context.py`).
+- `claude_tools.py` — seven tools (`add/update/delete_bill`, `add/update/delete_income`,
+  `update_account_balance`), each requiring a `reason`, **no `month_id` exposed**. `dispatch()`
+  resolves the current month server-side, enforces month scoping, and writes via `crud` with
+  `commit=False`. Problems raise `ToolDispatchError`.
+- `claude_client.py` — `run_turn(session, request)`: builds the system prompt (CLAUDE.md rules +
+  stale-on-write + comparison/no-prior-month guidance), runs a **manual** tool-use loop against
+  `claude-sonnet-4-6` (non-streaming), trims oldest conversation turns via `count_tokens` when over
+  `MAX_INPUT_TOKENS` (financial context never trimmed), maps `anthropic.AnthropicError` →
+  `AssistantUnavailable`. `create_anthropic_client()` is the patch point for tests.
+- `routers/claude.py` — `POST /api/claude` (orchestrates the turn; commits on success, rolls the
+  whole turn back on any tool error → atomic; returns reply + `writes[]` + recalculated summary;
+  502 on `AssistantUnavailable`) and `POST /api/claude/undo` (reverses the given turn's amendments
+  newest-first as **new** reversing amendments — append-only — `source="claude"` only).
+
+**Data layer**
+- `models.py` — new append-only `AccountBalanceSnapshot` (`account_id`, `balance`, `as_of_date`,
+  `recorded_at`; `account_id` is a plain int, not an FK, mirroring `Amendment`).
+- `crud.py` — `create/update/delete_entity` gained a `commit: bool = True` flag (Claude batches a
+  turn into one transaction); a snapshot row is written on every `account_balance` create and on any
+  update that changes a field.
+- `config.py` — `anthropic_api_key` setting (blank → friendly 502).
+- `pyproject.toml` — `anthropic` runtime dep; new modules in `py-modules` and `[tool.mutmut]`.
+
+**Frontend**
+- `api/claude.ts` (`postClaudeMessage`, `undoLastClaudeChange`), `api/types.ts` (Claude + snapshot
+  types), `hooks/useClaudeSession.ts` (session conversation + per-turn write list + `canUndo` +
+  `send`/`undoLast`; resets on unmount), and `screens/Claude.tsx` (chat UI: bubbles, error banner,
+  conditional "Undo last Claude change", composer) replacing the placeholder.
+
+**Tests added**: `test_account_snapshots.py`, `test_claude_context.py`, `test_claude_tools.py`,
+`test_claude_api.py` (query / write / undo / cross-month, all with `tests/fake_anthropic.py`), and
+`screens/__tests__/Claude.test.tsx`.
 
 ### 🟦 Phase 3 — Claude Integration: spec + AI-boundary ADR amendment (2026-06-18)
 
@@ -167,6 +211,10 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | `vitest/config` import | scaffolded `vite.config.ts` used `/// <reference types="vitest" />` + `defineConfig` from `vite` | Import `defineConfig` from **`vitest/config`** | The triple-slash ref isn't picked up by `tsconfig.node.json` (`types: ["node"]`) during `tsc -b`, so the `test` key failed to type-check at build. |
 | AI context boundary (Phase 3) | spec + constitution: Claude sent current month + one explicitly requested prior month ("minimal context") | Widened to the **full multi-month financial picture** (all months + account-balance history), read-only; writes still current-month only | User self-hosts and consents to analysis of their own finances; cross-month context is what makes forecasting/trends useful. Constitution bumped **v1.1.0**; all four governing docs amended together (2026-06-18). |
 | Account balance history (Phase 3) | `account_balances` holds only the current balance; history was to be reconstructed from `amendments` | Add append-only **`account_balance_snapshots(id, account_id, balance, as_of_date, recorded_at)`** table; write a row on every balance update | Amendments log is not a reliable time series for balance history: create-amendments don't record a numeric opening balance, balance + as_of_date land in separate rows, and `amended_at` ≠ `as_of_date`. Snapshot table is the correct structure. |
+| Transactional CRUD (Phase 3) | crud helpers committed per write | Added `commit: bool = True` to `create/update/delete_entity`; Claude's tool dispatch uses `commit=False` and the router commits/rolls back once per turn | Atomic multi-write turns (clarification 2026-06-20): any tool failure must roll the whole turn back. User writes keep the default `commit=True`, so existing behaviour is unchanged. |
+| Claude error/refusal status (Phase 3) | contracts/claude-api.md sketched a 409 for mid-turn write failure | A tool failure is surfaced to Claude as a tool error; the whole turn is rolled back and the endpoint returns **200** with the model's explanation and `writes: []` (only outright API unavailability returns 502) | Letting Claude explain ("which insurance bill?", "I can't change a previous month") is friendlier than a raw 409 and still satisfies FR-015 (no data change, no amendment). The 409 path was an early design sketch, not a requirement. |
+| Undo of a deletion (Phase 3) | FR-017 reverts "the most recent Claude write" generally | Undo handles **created** (delete the entity) and **field-update** (restore old value) reversals; undoing a Claude *deletion* returns 409 "not supported" | Re-creating a deleted entity from the amendment's summary string is lossy (category/recurring/due-date aren't recorded). No Gherkin undo scenario undoes a deletion. Revisit if needed (would require storing full entity state on delete). |
+| Non-streaming responses (Phase 3) | not specified | `POST /api/claude` returns one complete JSON response per turn (no SSE) | Clarification 2026-06-20 — simpler on a Pi/LAN; streaming can be added in Phase 5 polish. |
 
 ## Known issues / intentional oddities (do NOT "fix")
 
@@ -175,22 +223,29 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 - **mutmut 3.x false survivors:** 10 `crud.py` mutants report "survived" but are killed by the suite when applied directly — a mutmut 3.5.0 test-selection limitation, documented with evidence in `MUTANTS.md`. Not a coverage gap.
 - **mutmut config must use lists:** `paths_to_mutate` and `tests_dir` must be TOML lists, not comma-strings, or mutmut 3.x mutates the whole project / mis-parses the tests dir.
 
-## Starting point for next session (finish Phase 2 verification → Phase 3)
+## Starting point for next session (finish Phase 3 quality gates)
 
-1. **Merge PR #4** (`claude/budget-planner-spec-phase-2-hChzu` → `main`) — the post-implementation
-   bug fixes are pushed and all quality gates are green.
-2. **Finish the deferred Phase 2 live-app gates (T066–T068)** — these need a running stack:
-   - Terminal 1: `cd backend && uvicorn main:app --reload --port 8000` (seed a month + a few
-     income/bills/accounts via `/docs` or the UI).
-   - Terminal 2: `cd frontend && npm run dev`, open `http://localhost:5173`.
-   - T066: DevTools device mode at 390×844 — confirm no horizontal scroll, touch targets ≥ ~44px.
-   - T067: walk each screen side-by-side with `docs/mockup/` and reconcile spacing/tones.
-   - T068: run the `specs/002-core-ui/quickstart.md` smoke checklist end-to-end.
-   - Tick T066–T068 in `specs/002-core-ui/tasks.md` once verified.
-3. **Begin Phase 3 (Claude integration):** `/speckit-specify` for `003-claude-integration`
-   (chat UI, context injection, confirm-then-act direct writes, session-scoped undo), then
-   `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`. Runtime model is
-   `claude-sonnet-4-6`; calls go only through `/api/claude` (see the Claude Integration ADR in CLAUDE.md).
+Phase 3 code, tests, and linters are green. Remaining tasks in
+`specs/003-claude-integration/tasks.md` are T033–T037:
+
+1. **Mutation gates.** A mutmut run is/was in progress this session — review survivors:
+   `cd backend && .venv/bin/mutmut results`, inspect each with `mutmut show <id>`, and record any
+   genuinely-acceptable survivors in `MUTANTS.md` (id / what mutated / why acceptable). The log
+   already notes a known mutmut-3.x false-survivor quirk for `crud.py`. Then run frontend Stryker:
+   `cd frontend && npm run test:mutation` (T033/T034).
+2. **Live-app validation (T036).** Needs a real `ANTHROPIC_API_KEY` in `.env.local` and a browser:
+   - Terminal 1: `cd backend && uvicorn main:app --reload --port 8000` (the
+     `account_balance_snapshots` table is created on startup; seed a month + income/bills/accounts).
+   - Terminal 2: `cd frontend && npm run dev`, open the Claude tab.
+   - Walk the `specs/003-claude-integration/quickstart.md` §5 table (query, write, undo, cross-month).
+3. **Open the Phase 3 PR** once gates pass. Note Phase 2's PR #4 and live-app gates T066–T068 are
+   still open from the prior session and may want resolving first.
+
+**Quick orientation for whoever picks this up:** the whole feature funnels through
+`backend/routers/claude.py`; the Anthropic interaction lives in `backend/claude_client.py`
+(`create_anthropic_client` is the test patch point); writes are dispatched in
+`backend/claude_tools.py` (no `month_id` is ever exposed — current-month-only by construction).
+Frontend state is entirely in `frontend/src/hooks/useClaudeSession.ts`.
 
 ---
 

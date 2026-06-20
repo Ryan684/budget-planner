@@ -110,6 +110,16 @@ class AccountList(BaseModel):
     total_savings: float
 
 
+class AccountBalanceSnapshotRead(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    account_id: int
+    balance: float
+    as_of_date: date
+    recorded_at: datetime
+
+
 # ---------------------------------------------------------------------------
 # Months
 # ---------------------------------------------------------------------------
@@ -189,3 +199,45 @@ class AmendmentRead(BaseModel):
     reason: str | None
     source: Source
     amended_at: datetime
+
+
+# ---------------------------------------------------------------------------
+# Claude integration (Phase 3)
+# ---------------------------------------------------------------------------
+class ClaudeMessage(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ClaudeRequest(BaseModel):
+    message: str = Field(min_length=1)
+    conversation: list[ClaudeMessage] = Field(default_factory=list)
+
+
+class ClaudeWrite(BaseModel):
+    """One amendment produced by a Claude turn (drives session-scoped undo)."""
+
+    amendment_id: int
+    entity_type: EntityType
+    entity_id: int
+    entity_label: str | None
+    field_changed: str
+    old_value: str | None
+    new_value: str | None
+    reason: str | None
+
+
+class ClaudeResponse(BaseModel):
+    reply: str
+    writes: list[ClaudeWrite] = Field(default_factory=list)
+    # None only when no budget month exists yet.
+    summary: BudgetSummary | None = None
+
+
+class ClaudeUndoRequest(BaseModel):
+    amendment_ids: list[int] = Field(min_length=1)
+
+
+class ClaudeUndoResponse(BaseModel):
+    reverted: list[int]
+    summary: BudgetSummary | None = None

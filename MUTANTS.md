@@ -76,3 +76,52 @@ in test coverage.
 > SQLAlchemy default of `"user"`, so passing `source=None` could be argued
 > equivalent at the DB layer. They are listed here as covered because the
 > assertion path exercises the parameter; either classification is acceptable.
+
+---
+
+# Surviving Mutants — Phase 3 (Claude Integration)
+
+`[tool.mutmut] paths_to_mutate` now also covers `backend/claude_context.py`,
+`backend/claude_tools.py`, and `backend/claude_client.py`.
+
+**Latest run:** 2026-06-20 — **1039 mutants, 667 killed, 313 survived, 59 "no tests".**
+
+Per-module survivor breakdown:
+
+| Module | survived | "no tests" |
+|---|---|---|
+| budget.py | 4 | 0 |
+| carry_forward.py | 2 | 0 |
+| crud.py | 18 | 0 |
+| claude_context.py | 54 | 0 |
+| claude_client.py | 77 | 6 |
+| claude_tools.py | 158 | 53 |
+
+**⚠️ Status: triage INCOMPLETE.** This is the main outstanding Phase 3 quality gate (task T033).
+The constitution requires every retained survivor to be individually justified; that per-mutant
+pass has **not** been completed for the ~289 survivors in the three new Claude modules. What is
+established so far:
+
+- **budget.py (4) and carry_forward.py (2)** are the same equivalent mutants documented for Phase 1
+  above — re-verified by inspection (e.g. `budget.x_total_income__mutmut_6` mutates
+  `coalesce(sum, 0.0)` → `coalesce(sum, None)`, which is equivalent because the function returns
+  `result or 0.0`). Acceptable.
+- **crud.py (18)** is the Phase 1 set (equivalent + mutmut-3.x false survivors) plus a few new ones
+  from the `commit`/`_record_snapshot` additions; these need re-confirmation against the new code
+  but are expected to be the same two categories.
+- **The Claude modules (claude_context/claude_tools/claude_client)** survivors are dominated by:
+  1. **Unasserted human-readable strings** — tool confirmation text (`"Added bill '…'"`), error
+     messages, the system-prompt copy, and reply fallbacks. The *behaviour* (a write happened, the
+     turn rolled back, the context contains the right data) is asserted; the exact wording is not,
+     so mutating the wording survives. Largely acceptable but should be confirmed.
+  2. **Tool-schema literals** — the `TOOLS` list's `description`/`required`/property strings. No test
+     asserts the schema text, so literal mutations survive. Acceptable (the schema is consumed by the
+     Anthropic API, not unit-tested for wording).
+  3. **mutmut-3.x test-selection false survivors** — consistent with the documented Phase 1 quirk;
+     the 59 "no tests" entries are in modules that `test_claude_tools.py` / `test_claude_api.py`
+     clearly exercise, i.e. mutmut failed to map tests to them rather than the suite not covering them.
+
+**Next session must:** work through the Claude-module survivors with `mutmut show <id>`, kill any
+behaviourally-meaningful ones by adding targeted assertions (e.g. assert specific confirmation/error
+strings where they matter), and record the genuinely-equivalent / tool-quirk remainder here with the
+same evidence format as Phase 1. Do not consider Phase 3 "done" until this table is complete.

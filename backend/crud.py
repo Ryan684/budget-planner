@@ -59,6 +59,18 @@ def _log(
     )
 
 
+def _record_snapshot(session: Session, account) -> None:
+    """Append a balance snapshot row. Called on every account balance write so
+    the time series is complete (FR-023)."""
+    session.add(
+        models.AccountBalanceSnapshot(
+            account_id=account.id,
+            balance=account.balance,
+            as_of_date=account.as_of_date,
+        )
+    )
+
+
 def create_entity(
     session: Session,
     entity,
@@ -67,8 +79,14 @@ def create_entity(
     month_id: int | None,
     source: str = "user",
     reason: str | None = None,
+    commit: bool = True,
 ):
-    """Persist a new entity and log a 'created' amendment."""
+    """Persist a new entity and log a 'created' amendment.
+
+    ``commit=False`` keeps the write inside the caller's transaction (used by the
+    Claude tool path so a multi-write turn is atomic); the caller commits or
+    rolls back.
+    """
     session.add(entity)
     session.flush()  # assign primary key
     _log(
@@ -83,8 +101,11 @@ def create_entity(
         source=source,
         reason=reason,
     )
-    session.commit()
-    session.refresh(entity)
+    if entity_type == "account_balance":
+        _record_snapshot(session, entity)
+    if commit:
+        session.commit()
+        session.refresh(entity)
     return entity
 
 
@@ -97,6 +118,7 @@ def update_entity(
     month_id: int | None,
     source: str = "user",
     reason: str | None = None,
+    commit: bool = True,
 ):
     """Apply field changes, logging one amendment per actually-changed field."""
     changed_any = False
@@ -122,8 +144,11 @@ def update_entity(
         changed_any = True
 
     if changed_any:
-        session.commit()
-        session.refresh(entity)
+        if entity_type == "account_balance":
+            _record_snapshot(session, entity)
+        if commit:
+            session.commit()
+            session.refresh(entity)
     return entity
 
 
@@ -135,6 +160,7 @@ def delete_entity(
     month_id: int | None,
     source: str = "user",
     reason: str | None = None,
+    commit: bool = True,
 ) -> None:
     """Log a 'deleted' amendment (preserving entity_id) then delete the row."""
     entity_id = entity.id
@@ -151,4 +177,5 @@ def delete_entity(
         reason=reason,
     )
     session.delete(entity)
-    session.commit()
+    if commit:
+        session.commit()

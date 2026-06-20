@@ -20,6 +20,18 @@
 > across sessions, push notifications or scheduled summaries, writes to any month other than the
 > current one, and any data source beyond the existing budget tables.
 
+## Clarifications
+
+### Session 2026-06-20
+
+- Q: Should Claude responses stream token-by-token or return as a single complete response? → A: Single complete response — no incremental streaming in MVP.
+- Q: When Claude makes multiple writes in one turn, what is the undo unit? → A: Per turn — all writes in one response are bundled as a single undo step.
+- Q: When the payload exceeds the model's context window, what should happen? → A: Trim oldest conversation messages; financial history always stays intact.
+- Q: If Claude makes multiple writes in one turn and a later one fails, should earlier writes roll back? → A: All-or-nothing — roll back all writes in the turn on any failure.
+- Q: Should Claude warn about a stale balance (≥30 days) before writing a change that involves it? → A: Yes — include the stale flag and as-of date in the pre-write statement required by FR-009.
+
+---
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Ask Claude about the budget (Priority: P1)
@@ -167,9 +179,14 @@ and no error.
 
 - **Assistant unavailable**: When the AI service is unreachable or times out, the user sees a clear
   error on the Claude screen and no partial write is recorded; the budget is left unchanged.
-- **Write fails mid-turn**: If a stated change cannot be applied (e.g. the target was deleted
-  between statement and execution), Claude reports the failure, the data is left unchanged, and no
-  amendment is logged.
+- **Context window overflow**: When the combined financial history, system prompt, and conversation
+  history exceed the model's context limit, the oldest conversation messages MUST be silently
+  trimmed (from the front of the history) until the payload fits. The financial history and system
+  prompt MUST never be trimmed — only conversation turns are candidates for removal.
+- **Write fails mid-turn**: If any write in a multi-write turn fails (e.g. the target was deleted
+  between statement and execution), ALL writes in that turn MUST be rolled back atomically — the
+  budget is left exactly as it was before the turn. Claude reports the failure; no amendments are
+  logged for any write in the failed turn.
 - **Ambiguous target with no match**: If the user references an item that does not exist, Claude
   says so and makes no write (rather than creating a new item silently).
 - **Undo with nothing to undo**: Invoking undo when no Claude write exists in the session is a
@@ -190,7 +207,9 @@ and no error.
 #### Conversation & querying
 
 - **FR-001**: The system MUST provide a chat-style Claude screen where the user can send a message
-  and receive a response grounded in the current month's budget.
+  and receive a response grounded in the current month's budget. The response MUST be delivered as a
+  single complete answer once ready — the full reply appears at once (no incremental token-by-token
+  delivery in MVP).
 - **FR-002**: Claude MUST be able to read every month's income entries, bills, and monthly
   surplus, all account balances (with as-of dates) and their historical changes, and the
   amendments log when answering — the household's full financial picture.
@@ -211,7 +230,9 @@ and no error.
 - **FR-008**: Claude MUST be able to add, edit, and delete income entries and bills, and update
   account balances, for the active current month.
 - **FR-009**: Before executing any write, Claude MUST state the intended change and its effect on
-  monthly surplus or account balances in the same response.
+  monthly surplus or account balances in the same response. If the account balance being written
+  is stale (recorded ≥30 days ago), Claude MUST include the staleness flag and the balance's
+  as-of date in this pre-write statement.
 - **FR-010**: For an unambiguous request, the stated change and its execution MUST occur in the
   same turn (no separate confirmation round-trip required).
 - **FR-011**: When a request is ambiguous (e.g. multiple matching bills), Claude MUST ask for
@@ -223,14 +244,16 @@ and no error.
 - **FR-014**: Claude MUST NOT write to any month other than the active current month; attempts to
   change a previous (read-only) month MUST be refused with an explanation and MUST NOT alter data.
 - **FR-015**: A failed or refused write MUST leave the budget unchanged and MUST NOT create an
-  amendment record.
+  amendment record. When multiple writes are attempted in one turn and any write fails, ALL writes
+  in that turn MUST be rolled back atomically — the budget reverts to its exact pre-turn state.
 
 #### Undo
 
 - **FR-016**: The Claude screen MUST present an "Undo last Claude change" control whenever at least
   one Claude write has occurred in the current session, and MUST hide or disable it otherwise.
-- **FR-017**: Invoking undo MUST revert the single most recent Claude-initiated write and restore
-  the affected figures to their pre-change state.
+- **FR-017**: Invoking undo MUST revert all Claude-initiated writes from the most recent Claude
+  response turn as a single unit and restore the affected figures to their pre-change state. Multiple
+  writes made within one turn are bundled — one undo tap reverses the entire turn.
 - **FR-018**: Undo MUST never revert a manual user edit; it acts only on writes tagged source
   "claude".
 - **FR-019**: Undo scope MUST be the current session only and MUST reset when the Claude screen is
@@ -299,9 +322,9 @@ and no error.
   this phase.
 - **Single shared access**: No per-user identity in MVP, so the conversation and undo are scoped to
   a single shared session rather than to an individual user.
-- **Undo granularity is one amendment**: "Undo last Claude change" reverts the single most recent
-  Claude amendment. Multi-step writes within one turn that need atomic group-undo are not required
-  by the feature file and are out of scope unless raised later.
+- **Undo granularity is one turn**: "Undo last Claude change" reverts all amendments written in
+  the most recent Claude response turn as a single bundle. If Claude made three writes in one turn,
+  one undo tap reverts all three together. Individual within-turn amendment undo is out of scope.
 - **Confirm-then-act is single-turn for unambiguous requests**: The feature file shows Claude
   stating the change and executing in the same turn; an explicit second user confirmation is only
   required when the request is ambiguous. "Confirm" here means Claude makes its intent visible, not

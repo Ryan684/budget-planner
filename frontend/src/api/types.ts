@@ -144,3 +144,41 @@ export interface AmendmentRead {
   source: Source
   amended_at: string // ISO UTC
 }
+
+// ── Account balance snapshots (append-only time series) ──
+export interface AccountBalanceSnapshotRead {
+  id: number
+  account_id: number
+  balance: number
+  as_of_date: string // ISO date
+  recorded_at: string // ISO UTC
+}
+
+// ── Claude integration ──
+export interface ClaudeMessage {
+  role: 'user' | 'assistant'
+  content: string
+}
+export interface ClaudeRequest {
+  message: string
+  conversation: ClaudeMessage[]
+}
+export interface ClaudeWrite {
+  amendment_id: number
+  entity_type: EntityType
+  entity_id: number
+  entity_label: string | null
+  field_changed: string
+  old_value: string | null
+  new_value: string | null
+  reason: string | null
+}
+export interface ClaudeResponse {
+  reply: string
+  writes: ClaudeWrite[]
+  summary: BudgetSummary | null
+}
+export interface ClaudeUndoResponse {
+  reverted: number[]
+  summary: BudgetSummary | null
+}
