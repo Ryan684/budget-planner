@@ -159,8 +159,8 @@ month" answer and no error.
 
 **Purpose**: Quality gates and session handoff per the constitution build order.
 
-- [ ] T033 [P] Run `mutmut run` (backend); review survivors in `budget.py`/`carry_forward.py`/`crud.py`/`claude_context.py`/`claude_tools.py`/`claude_client.py`; record any accepted survivors in `MUTANTS.md` with id/what/why
-- [ ] T034 [P] Run `npm run test:mutation` (frontend Stryker); record any accepted survivors in `MUTANTS.md`
+- [X] T033 [P] Run `mutmut run` (backend); review survivors in `budget.py`/`carry_forward.py`/`crud.py`/`claude_context.py`/`claude_tools.py`/`claude_client.py`; record any accepted survivors in `MUTANTS.md` with id/what/why
+- [X] T034 [P] Run `npm run test:mutation` (frontend Stryker); record any accepted survivors in `MUTANTS.md`
 - [X] T035 Run both linters and fix all findings: `cd backend && ruff check . && ruff format --check .`; `cd frontend && npm run lint && npx tsc --noEmit`
 - [ ] T036 Run the `quickstart.md` manual validation against a populated current month (all scenario rows)
 - [X] T037 Update `docs/progress-log.md`: mark Phase 3 status, list files created/modified, record decisions (snapshot table, transactional `crud` variant, per-turn undo, non-streaming responses) and any spec divergences, and write the exact next step

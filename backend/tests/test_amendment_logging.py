@@ -134,6 +134,21 @@ def test_account_amendment_records_active_month(db_session):
     assert logs[0].new_value == "8900.0"
 
 
+def test_account_create_amendment_new_value_includes_balance(db_session):
+    month = make_month(db_session)
+    account = models.AccountBalance(
+        label="Savings",
+        balance=8400.0,
+        account_type="savings",
+    )
+    crud.create_entity(db_session, account, entity_type="account_balance", month_id=month.id)
+    logs = _amendments(db_session)
+    assert len(logs) == 1
+    assert logs[0].field_changed == "created"
+    assert "Savings" in logs[0].new_value
+    assert "8400" in logs[0].new_value
+
+
 def test_claude_source_and_reason_passthrough(db_session):
     """The helper takes source/reason params so Phase 3 reuses it unchanged."""
     month = make_month(db_session)

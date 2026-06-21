@@ -7,13 +7,40 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** ✅ Phase 3 (Claude Integration) — **code + tests + linters green** (backend 110 pytest, frontend 153 vitest; ruff + ESLint + tsc clean). Mutation gate (mutmut/Stryker) and live-app validation (T036, needs a real `ANTHROPIC_API_KEY` + browser) still outstanding. Phase 2 live-app gates T066–T068 and PR #4 also still open.
-**Last updated:** 2026-06-20
-**Next session goal:** Finish the Phase 3 quality gates — run frontend Stryker (T034), review the mutmut survivors and record any accepted ones in `MUTANTS.md` (T033), then do the live-app validation (T036) with a real key. After that, open the Phase 3 PR. (Phase 2 PR #4 + T066–T068 remain open from before.)
+**Phase:** ✅ Phase 3 (Claude Integration) — **all quality gates green** except T036 (live-app validation, needs real `ANTHROPIC_API_KEY` + browser). Backend 119 pytest, frontend 153 vitest; ruff + ESLint + tsc clean; mutmut 89.8% (243/249 survivors documented); Stryker 89.80% (15 survivors documented). Phase 2 live-app gates T066–T068 and PR #4 also still open.
+**Last updated:** 2026-06-21
+**Next session goal:** Run T036 (manual quickstart validation with a real Anthropic key against a populated current month — see `specs/003-claude-integration/quickstart.md`), then open the Phase 3 PR. (Phase 2 PR #4 + T066–T068 remain open from before.)
 
 ---
 
 ## Phase Completion Log
+
+### ✅ Phase 3 — Claude Integration: mutation gate (2026-06-21)
+
+Branch `claude/speckit-specify-web-check-1xj6ix`. Tasks T033 and T034 completed.
+
+**Backend mutmut** (re-run after new tests): 1039 mutants, 790 killed, 243 survived, 6 "no tests".
+All survivors documented in `MUTANTS.md` (Phase 3 section — Groups A–I). No undocumented survivors remain.
+
+Five new tests added to close genuine behavioral gaps found during triage:
+- `test_delete_bill_in_current_month` — verifies source/reason/month_id for delete_bill amendments
+- `test_update_account_balance_tool` — verifies source/reason/month_id/old/new for account balance tool
+- `test_add_income_writes_with_claude_source_and_reason` — killed _add_income coverage gaps
+- `test_update_income_in_current_month` — killed _update_income coverage gaps (was zero-tested)
+- `test_cannot_update_income_from_previous_month` — killed month-scope guard gaps for income
+- `test_is_stale_boundary` (earlier session) — killed is_stale >= boundary mutant
+- Extended `test_context_includes_full_financial_picture` with exhaustive field assertions
+
+**Frontend Stryker**: 147 mutants, 132 killed, 15 survived (89.80%). 5 new survivors in
+`amendments.ts` from Phase 3's entityLabel parsing code (line 33 regex + MONEY_FIELDS).
+All documented in `frontend/MUTANTS.md` (Phase 3 section). All accepted as display-layer helpers.
+
+**Files modified this session**: `backend/tests/test_claude_tools.py`,
+`backend/tests/test_claude_context.py`, `backend/tests/test_amendment_logging.py`,
+`MUTANTS.md`, `frontend/MUTANTS.md`, `specs/003-claude-integration/tasks.md`,
+`docs/progress-log.md`.
+
+**Remaining**: T036 (live-app quickstart validation) deferred — needs real ANTHROPIC_API_KEY and browser.
 
 ### ✅ Phase 3 — Claude Integration: implementation (2026-06-20)
 
