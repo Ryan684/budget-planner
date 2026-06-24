@@ -7,13 +7,40 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** ✅ Phase 3 (Claude Integration) — **all quality gates green** except T036 (live-app validation, needs real `ANTHROPIC_API_KEY` + browser). Backend 119 pytest, frontend 153 vitest; ruff + ESLint + tsc clean; mutmut 89.8% (243/249 survivors documented); Stryker 89.80% (15 survivors documented). Phase 2 live-app gates T066–T068 and PR #4 also still open.
-**Last updated:** 2026-06-21
-**Next session goal:** Run T036 (manual quickstart validation with a real Anthropic key against a populated current month — see `specs/003-claude-integration/quickstart.md`), then open the Phase 3 PR. (Phase 2 PR #4 + T066–T068 remain open from before.)
+**Phase:** ✅ Phase 3 (Claude Integration) — **ALL quality gates green including T036**. Backend 119 pytest, frontend 153 vitest; ruff + ESLint + tsc clean; mutmut 89.8% (243/249 survivors documented); Stryker 89.80% (15 survivors documented). Phase 2 live-app gates T066–T068 and PR #4 also still open.
+**Last updated:** 2026-06-24
+**Next session goal:** Open the Phase 3 PR (branch `claude/speckit-specify-web-check-1xj6ix` → `main`). Phase 2 PR #4 + T066–T068 remain open from before.
 
 ---
 
 ## Phase Completion Log
+
+### ✅ Phase 3 — Claude Integration: manual validation T036 (2026-06-24)
+
+Branch `claude/speckit-specify-web-check-1xj6ix`. T036 completed via HTTP API against a seeded dev DB.
+
+All 12 quickstart scenarios passed against a live `claude-sonnet-4-6` call with the real API key:
+
+| Scenario | Result | Notes |
+|---|---|---|
+| Surplus question | PASS | £4,745 correct, no write |
+| Savings balance + as-of date | PASS | £8,500 + 2026-06-24 shown |
+| Savings forecast | PASS | Computed from recorded balance, not invented |
+| Broadband bill (absent) | PASS | "no broadband bill recorded" |
+| Add £45 water bill | PASS | Intent + surplus effect stated, bill written, amendment logged `source=claude` |
+| Update savings to £8,900 | PASS | Snapshot row written, balance updated |
+| Ambiguous insurance bill | PASS | Asked which one; no write until clarified (minor: ID displayed same for both in text) |
+| Undo last Claude change | PASS | Write reverted, surplus snapped back, reversal logged as new row |
+| Three turns, undo most recent only | PASS | Only turn C reverted; turns A and B untouched |
+| Manual edit + Claude write + undo | PASS | Manual mortgage edit preserved; only Claude broadband bill reverted |
+| Previous month write refused | PASS | "read-only" message, May data unchanged |
+| Cross-month comparison | PASS | May vs June table with deltas |
+| Missing month graceful | PASS | "no April data" — no error, no invented figure |
+
+Dev DB seeded with: 2 months (2026-05 May, 2026-06 June), 4 income entries, 11 bills (including 2 insurance bills for ambiguity test), 2 accounts (Savings £8,500, Current £2,400) + snapshots.
+
+**Files modified**: `specs/003-claude-integration/tasks.md` (T036 marked complete), `docs/progress-log.md`.
+**Backend db backup**: `backend/data/budget-dev.db.bak` (pre-seed state preserved).
 
 ### ✅ Phase 3 — Claude Integration: mutation gate (2026-06-21)
 
