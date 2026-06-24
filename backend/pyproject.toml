@@ -10,6 +10,7 @@ dependencies = [
     "pydantic>=2",
     "pydantic-settings",
     "python-dotenv",
+    "anthropic",
 ]
 
 [project.optional-dependencies]
@@ -34,6 +35,9 @@ py-modules = [
     "crud",
     "budget",
     "carry_forward",
+    "claude_context",
+    "claude_tools",
+    "claude_client",
 ]
 packages = ["routers"]
 
@@ -45,5 +49,12 @@ pythonpath = ["."]
 # mutmut 3.x expects a list of paths. Scope mutation to the core logic
 # modules (calculations, carry-forward, amendment logging) — not routers,
 # schemas, or boilerplate.
-paths_to_mutate = ["budget.py", "carry_forward.py", "crud.py"]
+paths_to_mutate = [
+    "budget.py",
+    "carry_forward.py",
+    "crud.py",
+    "claude_context.py",
+    "claude_tools.py",
+    "claude_client.py",
+]
 tests_dir = ["tests/"]

@@ -7,13 +7,136 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** ✅ Phase 2 (Core UI) — complete (code/tests/mutation gates green; live-app gates T066–T068 deferred — need a running backend + browser). Post-implementation bug fixes applied 2026-06-14; PR #4 open.
-**Last updated:** 2026-06-14
-**Next session goal:** Merge PR #4 → `main`, then run the deferred live-app gates (T066–T068), then begin Phase 3: `/speckit-specify` for `003-claude-integration`.
+**Phase:** ✅ Phase 3 (Claude Integration) — **ALL quality gates green including T036**. Backend 119 pytest, frontend 153 vitest; ruff + ESLint + tsc clean; mutmut 89.8% (243/249 survivors documented); Stryker 89.80% (15 survivors documented). Phase 2 live-app gates T066–T068 and PR #4 also still open.
+**Last updated:** 2026-06-24
+**Next session goal:** Open the Phase 3 PR (branch `claude/speckit-specify-web-check-1xj6ix` → `main`). Phase 2 PR #4 + T066–T068 remain open from before.
 
 ---
 
 ## Phase Completion Log
+
+### ✅ Phase 3 — Claude Integration: manual validation T036 (2026-06-24)
+
+Branch `claude/speckit-specify-web-check-1xj6ix`. T036 completed via HTTP API against a seeded dev DB.
+
+All 12 quickstart scenarios passed against a live `claude-sonnet-4-6` call with the real API key:
+
+| Scenario | Result | Notes |
+|---|---|---|
+| Surplus question | PASS | £4,745 correct, no write |
+| Savings balance + as-of date | PASS | £8,500 + 2026-06-24 shown |
+| Savings forecast | PASS | Computed from recorded balance, not invented |
+| Broadband bill (absent) | PASS | "no broadband bill recorded" |
+| Add £45 water bill | PASS | Intent + surplus effect stated, bill written, amendment logged `source=claude` |
+| Update savings to £8,900 | PASS | Snapshot row written, balance updated |
+| Ambiguous insurance bill | PASS | Asked which one; no write until clarified (minor: ID displayed same for both in text) |
+| Undo last Claude change | PASS | Write reverted, surplus snapped back, reversal logged as new row |
+| Three turns, undo most recent only | PASS | Only turn C reverted; turns A and B untouched |
+| Manual edit + Claude write + undo | PASS | Manual mortgage edit preserved; only Claude broadband bill reverted |
+| Previous month write refused | PASS | "read-only" message, May data unchanged |
+| Cross-month comparison | PASS | May vs June table with deltas |
+| Missing month graceful | PASS | "no April data" — no error, no invented figure |
+
+Dev DB seeded with: 2 months (2026-05 May, 2026-06 June), 4 income entries, 11 bills (including 2 insurance bills for ambiguity test), 2 accounts (Savings £8,500, Current £2,400) + snapshots.
+
+**Files modified**: `specs/003-claude-integration/tasks.md` (T036 marked complete), `docs/progress-log.md`.
+**Backend db backup**: `backend/data/budget-dev.db.bak` (pre-seed state preserved).
+
+### ✅ Phase 3 — Claude Integration: mutation gate (2026-06-21)
+
+Branch `claude/speckit-specify-web-check-1xj6ix`. Tasks T033 and T034 completed.
+
+**Backend mutmut** (re-run after new tests): 1039 mutants, 790 killed, 243 survived, 6 "no tests".
+All survivors documented in `MUTANTS.md` (Phase 3 section — Groups A–I). No undocumented survivors remain.
+
+Five new tests added to close genuine behavioral gaps found during triage:
+- `test_delete_bill_in_current_month` — verifies source/reason/month_id for delete_bill amendments
+- `test_update_account_balance_tool` — verifies source/reason/month_id/old/new for account balance tool
+- `test_add_income_writes_with_claude_source_and_reason` — killed _add_income coverage gaps
+- `test_update_income_in_current_month` — killed _update_income coverage gaps (was zero-tested)
+- `test_cannot_update_income_from_previous_month` — killed month-scope guard gaps for income
+- `test_is_stale_boundary` (earlier session) — killed is_stale >= boundary mutant
+- Extended `test_context_includes_full_financial_picture` with exhaustive field assertions
+
+**Frontend Stryker**: 147 mutants, 132 killed, 15 survived (89.80%). 5 new survivors in
+`amendments.ts` from Phase 3's entityLabel parsing code (line 33 regex + MONEY_FIELDS).
+All documented in `frontend/MUTANTS.md` (Phase 3 section). All accepted as display-layer helpers.
+
+**Files modified this session**: `backend/tests/test_claude_tools.py`,
+`backend/tests/test_claude_context.py`, `backend/tests/test_amendment_logging.py`,
+`MUTANTS.md`, `frontend/MUTANTS.md`, `specs/003-claude-integration/tasks.md`,
+`docs/progress-log.md`.
+
+**Remaining**: T036 (live-app quickstart validation) deferred — needs real ANTHROPIC_API_KEY and browser.
+
+### ✅ Phase 3 — Claude Integration: implementation (2026-06-20)
+
+`/speckit-clarify → plan → tasks → analyze → implement` on branch
+`claude/speckit-specify-web-check-1xj6ix`. All 37 tasks T001–T032 done; T033–T037 (quality
+gates / handoff) partially done — see Current Status. Anthropic API is **mocked in every test**.
+
+**New backend modules**
+- `claude_context.py` — `build_budget_context(session)` assembles the privacy-bounded payload
+  (all months + income/bills/surplus, accounts with `is_stale` via the 30-day rule, the
+  `balance_snapshots` series, and the amendments log). Deterministic key order. Excludes the DB
+  file, secrets, `.env`, and PIN (asserted in `test_claude_context.py`).
+- `claude_tools.py` — seven tools (`add/update/delete_bill`, `add/update/delete_income`,
+  `update_account_balance`), each requiring a `reason`, **no `month_id` exposed**. `dispatch()`
+  resolves the current month server-side, enforces month scoping, and writes via `crud` with
+  `commit=False`. Problems raise `ToolDispatchError`.
+- `claude_client.py` — `run_turn(session, request)`: builds the system prompt (CLAUDE.md rules +
+  stale-on-write + comparison/no-prior-month guidance), runs a **manual** tool-use loop against
+  `claude-sonnet-4-6` (non-streaming), trims oldest conversation turns via `count_tokens` when over
+  `MAX_INPUT_TOKENS` (financial context never trimmed), maps `anthropic.AnthropicError` →
+  `AssistantUnavailable`. `create_anthropic_client()` is the patch point for tests.
+- `routers/claude.py` — `POST /api/claude` (orchestrates the turn; commits on success, rolls the
+  whole turn back on any tool error → atomic; returns reply + `writes[]` + recalculated summary;
+  502 on `AssistantUnavailable`) and `POST /api/claude/undo` (reverses the given turn's amendments
+  newest-first as **new** reversing amendments — append-only — `source="claude"` only).
+
+**Data layer**
+- `models.py` — new append-only `AccountBalanceSnapshot` (`account_id`, `balance`, `as_of_date`,
+  `recorded_at`; `account_id` is a plain int, not an FK, mirroring `Amendment`).
+- `crud.py` — `create/update/delete_entity` gained a `commit: bool = True` flag (Claude batches a
+  turn into one transaction); a snapshot row is written on every `account_balance` create and on any
+  update that changes a field.
+- `config.py` — `anthropic_api_key` setting (blank → friendly 502).
+- `pyproject.toml` — `anthropic` runtime dep; new modules in `py-modules` and `[tool.mutmut]`.
+
+**Frontend**
+- `api/claude.ts` (`postClaudeMessage`, `undoLastClaudeChange`), `api/types.ts` (Claude + snapshot
+  types), `hooks/useClaudeSession.ts` (session conversation + per-turn write list + `canUndo` +
+  `send`/`undoLast`; resets on unmount), and `screens/Claude.tsx` (chat UI: bubbles, error banner,
+  conditional "Undo last Claude change", composer) replacing the placeholder.
+
+**Tests added**: `test_account_snapshots.py`, `test_claude_context.py`, `test_claude_tools.py`,
+`test_claude_api.py` (query / write / undo / cross-month, all with `tests/fake_anthropic.py`), and
+`screens/__tests__/Claude.test.tsx`.
+
+### 🟦 Phase 3 — Claude Integration: spec + AI-boundary ADR amendment (2026-06-18)
+
+Spec-only session, no code. Branch `claude/speckit-specify-web-check-1xj6ix`.
+
+**`/speckit-specify` → `specs/003-claude-integration/`** — drafted `spec.md` (4 prioritised user
+stories: P1 querying, P2 confirm-then-act writes, P3 undo, P3 cross-month trends; FR-001–FR-022;
+SC-001–SC-007) and `checklists/requirements.md` (all items pass). `.specify/feature.json` repointed
+from `specs/002-core-ui` → `specs/003-claude-integration`.
+
+**AI-boundary ADR widened (user decision).** Claude's *read* context expanded from "current month +
+one explicitly requested prior month" to the household's **full multi-month financial picture** (all
+months' budgets + all account balances and their history). Writes are unchanged — current month
+only; previous months stay read-only. Boundary now excludes only the raw DB file, secrets, `.env`,
+and PIN. Amended in lockstep across all four governing docs: constitution Principle IV (renamed
+*Privacy & Minimal AI Context* → *Privacy & AI Data Boundary*, **v1.0.0 → v1.1.0**),
+`docs/budget-planner-spec.md` (AI Boundary section + Phase 3 / Claude-screen lines), `CLAUDE.md`
+(Privacy boundary + runtime system prompt), and the 003 spec.
+
+**✅ Resolved (2026-06-18):** A dedicated append-only `account_balance_snapshots(id, account_id,
+balance, as_of_date, recorded_at)` table will be added. A row is written on every balance update,
+giving Claude a correctly-dated, first-class time series for trend analysis. Added to the project
+spec data model, FR-023 and a new Key Entity added to the 003 spec, and a new Spec Divergence row
+added below. Phase 3 planning must include the schema addition and the write-path change in
+`accounts.py`/`crud.py`.
 
 ### ✅ Phase 2 — Core UI post-implementation bug fixes (2026-06-14)
 
@@ -140,6 +263,12 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | Amendment entity context | Feature file said "each entry shows source, field changed, old value, new value, reason, and timestamp" — entity name was absent | Added `entity_label` column to `Amendment`; store entity name on every write; display it in the UI for field-update events | Found during live testing: without the label you can't tell which bill or income entry was changed. Three Gherkin scenarios added retroactively to capture this requirement. |
 | Dev DB migration strategy | N/A (early development) | Drop and recreate dev DB when schema changes rather than writing migration scripts | Too early in development for migrations to be worthwhile; schema is still fluid. Migrations will be necessary before any production deploy. |
 | `vitest/config` import | scaffolded `vite.config.ts` used `/// <reference types="vitest" />` + `defineConfig` from `vite` | Import `defineConfig` from **`vitest/config`** | The triple-slash ref isn't picked up by `tsconfig.node.json` (`types: ["node"]`) during `tsc -b`, so the `test` key failed to type-check at build. |
+| AI context boundary (Phase 3) | spec + constitution: Claude sent current month + one explicitly requested prior month ("minimal context") | Widened to the **full multi-month financial picture** (all months + account-balance history), read-only; writes still current-month only | User self-hosts and consents to analysis of their own finances; cross-month context is what makes forecasting/trends useful. Constitution bumped **v1.1.0**; all four governing docs amended together (2026-06-18). |
+| Account balance history (Phase 3) | `account_balances` holds only the current balance; history was to be reconstructed from `amendments` | Add append-only **`account_balance_snapshots(id, account_id, balance, as_of_date, recorded_at)`** table; write a row on every balance update | Amendments log is not a reliable time series for balance history: create-amendments don't record a numeric opening balance, balance + as_of_date land in separate rows, and `amended_at` ≠ `as_of_date`. Snapshot table is the correct structure. |
+| Transactional CRUD (Phase 3) | crud helpers committed per write | Added `commit: bool = True` to `create/update/delete_entity`; Claude's tool dispatch uses `commit=False` and the router commits/rolls back once per turn | Atomic multi-write turns (clarification 2026-06-20): any tool failure must roll the whole turn back. User writes keep the default `commit=True`, so existing behaviour is unchanged. |
+| Claude error/refusal status (Phase 3) | contracts/claude-api.md sketched a 409 for mid-turn write failure | A tool failure is surfaced to Claude as a tool error; the whole turn is rolled back and the endpoint returns **200** with the model's explanation and `writes: []` (only outright API unavailability returns 502) | Letting Claude explain ("which insurance bill?", "I can't change a previous month") is friendlier than a raw 409 and still satisfies FR-015 (no data change, no amendment). The 409 path was an early design sketch, not a requirement. |
+| Undo of a deletion (Phase 3) | FR-017 reverts "the most recent Claude write" generally | Undo handles **created** (delete the entity) and **field-update** (restore old value) reversals; undoing a Claude *deletion* returns 409 "not supported" | Re-creating a deleted entity from the amendment's summary string is lossy (category/recurring/due-date aren't recorded). No Gherkin undo scenario undoes a deletion. Revisit if needed (would require storing full entity state on delete). |
+| Non-streaming responses (Phase 3) | not specified | `POST /api/claude` returns one complete JSON response per turn (no SSE) | Clarification 2026-06-20 — simpler on a Pi/LAN; streaming can be added in Phase 5 polish. |
 
 ## Known issues / intentional oddities (do NOT "fix")
 
@@ -148,22 +277,29 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 - **mutmut 3.x false survivors:** 10 `crud.py` mutants report "survived" but are killed by the suite when applied directly — a mutmut 3.5.0 test-selection limitation, documented with evidence in `MUTANTS.md`. Not a coverage gap.
 - **mutmut config must use lists:** `paths_to_mutate` and `tests_dir` must be TOML lists, not comma-strings, or mutmut 3.x mutates the whole project / mis-parses the tests dir.
 
-## Starting point for next session (finish Phase 2 verification → Phase 3)
+## Starting point for next session (finish Phase 3 quality gates)
 
-1. **Merge PR #4** (`claude/budget-planner-spec-phase-2-hChzu` → `main`) — the post-implementation
-   bug fixes are pushed and all quality gates are green.
-2. **Finish the deferred Phase 2 live-app gates (T066–T068)** — these need a running stack:
-   - Terminal 1: `cd backend && uvicorn main:app --reload --port 8000` (seed a month + a few
-     income/bills/accounts via `/docs` or the UI).
-   - Terminal 2: `cd frontend && npm run dev`, open `http://localhost:5173`.
-   - T066: DevTools device mode at 390×844 — confirm no horizontal scroll, touch targets ≥ ~44px.
-   - T067: walk each screen side-by-side with `docs/mockup/` and reconcile spacing/tones.
-   - T068: run the `specs/002-core-ui/quickstart.md` smoke checklist end-to-end.
-   - Tick T066–T068 in `specs/002-core-ui/tasks.md` once verified.
-3. **Begin Phase 3 (Claude integration):** `/speckit-specify` for `003-claude-integration`
-   (chat UI, context injection, confirm-then-act direct writes, session-scoped undo), then
-   `/speckit-plan` → `/speckit-tasks` → `/speckit-analyze` → `/speckit-implement`. Runtime model is
-   `claude-sonnet-4-6`; calls go only through `/api/claude` (see the Claude Integration ADR in CLAUDE.md).
+Phase 3 code, tests, and linters are green. Remaining tasks in
+`specs/003-claude-integration/tasks.md` are T033–T037:
+
+1. **Mutation gates.** A mutmut run is/was in progress this session — review survivors:
+   `cd backend && .venv/bin/mutmut results`, inspect each with `mutmut show <id>`, and record any
+   genuinely-acceptable survivors in `MUTANTS.md` (id / what mutated / why acceptable). The log
+   already notes a known mutmut-3.x false-survivor quirk for `crud.py`. Then run frontend Stryker:
+   `cd frontend && npm run test:mutation` (T033/T034).
+2. **Live-app validation (T036).** Needs a real `ANTHROPIC_API_KEY` in `.env.local` and a browser:
+   - Terminal 1: `cd backend && uvicorn main:app --reload --port 8000` (the
+     `account_balance_snapshots` table is created on startup; seed a month + income/bills/accounts).
+   - Terminal 2: `cd frontend && npm run dev`, open the Claude tab.
+   - Walk the `specs/003-claude-integration/quickstart.md` §5 table (query, write, undo, cross-month).
+3. **Open the Phase 3 PR** once gates pass. Note Phase 2's PR #4 and live-app gates T066–T068 are
+   still open from the prior session and may want resolving first.
+
+**Quick orientation for whoever picks this up:** the whole feature funnels through
+`backend/routers/claude.py`; the Anthropic interaction lives in `backend/claude_client.py`
+(`create_anthropic_client` is the test patch point); writes are dispatched in
+`backend/claude_tools.py` (no `month_id` is ever exposed — current-month-only by construction).
+Frontend state is entirely in `frontend/src/hooks/useClaudeSession.ts`.
 
 ---
 

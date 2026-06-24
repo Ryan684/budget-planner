@@ -23,13 +23,14 @@ request/response models. SQLAlchemy ORM only — no raw SQL. No inline styles in
 modules or Tailwind). Mobile-first CSS. Money shown as `£X,XXX.XX`; negatives in red with a
 minus sign, never parentheses.
 
-### IV. Privacy & Minimal AI Context
-Claude is called only from the `/api/claude` endpoint and receives only the minimum context
-needed for the current question — current month's budget, accounts, amendments, the user's
-message, and session history. Never the raw database or unrelated prior months (unless the
-user explicitly asks, then append only that month). Every Claude write is tagged
-`source: "claude"` with a human-readable `reason`, states its effect before executing, and
-returns recalculated figures. Previous months are read-only.
+### IV. Privacy & AI Data Boundary
+Claude is called only from the `/api/claude` endpoint. It may read the household's full
+financial picture for analysis and forecasting — every month's budget (income, bills,
+surplus), all account balances and their historical changes, and the amendments log —
+supplied as structured JSON, never the raw database file, application secrets, `.env`, or the
+PIN. Every Claude write is tagged `source: "claude"` with a human-readable `reason`, states
+its effect before executing, and returns recalculated figures. Writes are confined to the
+active current month — previous months are read-only.
 
 ### V. Data Durability & Integrity
 All monetary values are stored as REAL/float, displayed in GBP. All timestamps stored UTC,
@@ -75,4 +76,12 @@ gates before merge to `main`. The phased plan (0: infra, 1: data layer, 2: UI, 3
 artifacts live under `specs/NNN-*/`; `docs/progress-log.md` is the authoritative session-handoff
 record.
 
-**Version**: 1.0.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-05-30
+**Version**: 1.1.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-06-18
+
+> **1.1.0 (2026-06-18)** — Principle IV renamed *Privacy & Minimal AI Context* → *Privacy & AI
+> Data Boundary*. Claude's read scope widened from "current month + one explicitly requested
+> prior month" to the household's full multi-month financial picture (all months, account
+> balances and their history). The boundary now excludes only the raw database file, secrets,
+> `.env`, and the PIN. Write scope is unchanged — current month only; previous months remain
+> read-only. Rationale: the household self-hosts and consents to analysis of its own finances,
+> and cross-month context is what makes forecasting and trend analysis useful.

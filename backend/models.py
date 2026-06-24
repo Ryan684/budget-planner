@@ -79,6 +79,27 @@ class AccountBalance(Base):
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
 
 
+class AccountBalanceSnapshot(Base):
+    """Append-only balance time series. One row is written on every account
+    balance create or update (by users and by Claude alike) so cross-month
+    balance trend analysis does not depend on reconstructing history from the
+    general amendments log.
+
+    ``account_id`` is a plain integer, not an enforced FK, so deleting the
+    underlying account preserves its snapshot history (mirrors ``Amendment``).
+    """
+
+    __tablename__ = "account_balance_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    account_id: Mapped[int] = mapped_column(Integer, nullable=False, index=True)
+    balance: Mapped[float] = mapped_column(Float, nullable=False)
+    as_of_date: Mapped[date] = mapped_column(Date, nullable=False)
+    recorded_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=_utcnow, nullable=False
+    )
+
+
 class Amendment(Base):
     """Append-only audit log. Rows are never updated or deleted.
 
