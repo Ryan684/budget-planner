@@ -8,6 +8,15 @@
 
 **Input**: User description: "@docs/budget-planner-spec.md phase 4"
 
+## Clarifications
+
+### Session 2026-06-24
+
+- Q: Should the system automatically rebuild the DB from the JSON export, or is JSON a manual fallback only? → A: Manual human-readable fallback only; automated JSON→DB import is out of scope.
+- Q: Should each run verify the backup is valid before counting as successful? → A: Yes — run a SQLite integrity check on the copied DB and confirm the JSON parses; fail the run if either is bad (do not commit a corrupt backup).
+- Q: Where should the per-run success/failure log live? → A: A local log file on the Pi (captures failures even when the push fails; independent of the repo).
+- Q: What happens if the Pi is powered off at the scheduled backup time? → A: Catch up on the next boot (anacron-style scheduling), so an overnight power-off does not silently skip a backup.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Unattended nightly offsite backup (Priority: P1)
@@ -101,13 +110,20 @@ or the failure reason.
 - **Unchanged data since last run**: no spurious failure and no misleading commit (see US1 #3).
 - **Run invoked while a previous run is still in progress**: the second invocation must not
   corrupt the backup (e.g. via a lock or guard).
+- **Integrity check fails**: if the copied database fails its integrity check or the generated
+  JSON does not parse, the run must fail (logged, non-zero exit) and must not commit/push the bad
+  artifacts over good history.
+- **Pi powered off at the scheduled time**: the missed run must execute once the Pi is back up
+  (catch-up scheduling) rather than being silently skipped until the next night.
 
 ## Requirements *(mandatory)*
 
 ### Functional Requirements
 
 - **FR-001**: The system MUST produce a backup of the live SQLite database on a nightly schedule
-  on the Raspberry Pi, without manual intervention once configured.
+  on the Raspberry Pi, without manual intervention once configured. If the scheduled time is
+  missed because the Pi was powered off, the run MUST execute on the next boot (catch-up
+  scheduling) rather than being skipped until the following night.
 - **FR-002**: The database backup MUST be a consistent, point-in-time copy (not a torn read taken
   mid-write).
 - **FR-003**: The database copy MUST be stored in the backup repository under a single stable
@@ -115,14 +131,22 @@ or the failure reason.
   re-timestamping the binary file each night.
 - **FR-004**: The system MUST generate a full-history JSON export covering every month's income,
   bills, and surplus, plus all account balances and their snapshot history, as a human-readable
-  fallback independent of the binary database file.
+  fallback independent of the binary database file. The JSON is a manual fallback only — automated
+  reconstruction of the database from the JSON is explicitly out of scope (the binary `.db` copy is
+  the restore path).
+- **FR-004a**: Before committing/pushing, the system MUST verify the backup artifacts: a SQLite
+  integrity check on the copied database file MUST pass and the generated JSON MUST parse. If
+  either check fails, the run MUST be treated as a failure (per FR-008/FR-009) and MUST NOT commit
+  or push the artifacts.
 - **FR-005**: The system MUST commit and push the database copy and the JSON export to a private,
   offsite Git repository over an authenticated connection on each run.
 - **FR-006**: The backup repository MUST be separate from the application source repository.
 - **FR-007**: The system MUST NOT include application secrets, the `.env` files, the API key, or
   the PIN in any backup artifact.
-- **FR-008**: Each run MUST record its outcome (success or failure) with a timestamp, and on
-  failure MUST record a reason and exit with a non-zero status.
+- **FR-008**: Each run MUST record its outcome (success or failure) with a timestamp to a local
+  log file on the Pi, and on failure MUST record a reason and exit with a non-zero status. The log
+  is local (not solely in the backup repository) so that failures — including push failures — are
+  always captured regardless of whether the push succeeded.
 - **FR-009**: On any failure (no network, rejected push, missing/empty database), the system MUST
   NOT overwrite or corrupt previously good backups, and MUST leave the system able to back up
   successfully on the next scheduled run.
@@ -146,8 +170,9 @@ or the failure reason.
 - **JSON export artifact**: A structured, human-readable snapshot of the full financial history —
   every month (income, bills, surplus) and every account balance with its snapshot history. The
   fallback when the binary database is unreadable. Contains no secrets.
-- **Backup run record (log)**: A per-run entry capturing timestamp and outcome (success, or
-  failure with reason). The basis for noticing a broken backup.
+- **Backup run record (log)**: A per-run entry in a local log file on the Pi, capturing timestamp
+  and outcome (success, or failure with reason). Kept locally so push failures are still recorded.
+  The basis for noticing a broken backup.
 - **Private backup repository**: The offsite Git repository, separate from the app source repo,
   holding the backup artifacts; its commit history is the versioned backup timeline.
 
@@ -169,14 +194,18 @@ or the failure reason.
   (verifiable by inspecting the backup repository contents).
 - **SC-007**: A failed run never degrades the previous good backup; the immediately following
   scheduled run succeeds once the failure condition is removed.
+- **SC-008**: No backup is ever committed/pushed unless its database copy passes a SQLite integrity
+  check and its JSON export parses — a corrupt artifact is rejected rather than stored.
 
 ## Assumptions
 
 - **Authenticated push over SSH**: The Pi authenticates to the private backup repository using an
   SSH key configured at Pi setup time, consistent with the project spec. Key generation/authorising
   is a documented setup step, not something the routine performs.
-- **Scheduling via cron**: The nightly schedule is a cron job on the Pi (per the spec and CLAUDE.md).
-  The exact run time is an operational detail (default: early morning, low-activity hours).
+- **Scheduling with catch-up**: The nightly schedule runs on the Pi (per the spec and CLAUDE.md)
+  using a mechanism that re-runs a missed job on the next boot (anacron-style), so an overnight
+  power-off does not silently skip a backup. The exact run time is an operational detail (default:
+  early morning, low-activity hours).
 - **Backup repo provisioning is a setup prerequisite**: The empty private backup repository already
   exists on GitHub (created in Phase 0) and is reachable from the Pi.
 - **Scope excludes active alerting**: Surfacing backup failures via push/email/UI alerts is a
