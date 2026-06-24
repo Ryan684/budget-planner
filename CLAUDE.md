@@ -424,5 +424,5 @@ Use the `/end-session` slash command at the end of each Claude Code session. Thi
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/003-claude-integration/plan.md`
+`specs/004-backup-automation/plan.md`
 <!-- SPECKIT END -->
