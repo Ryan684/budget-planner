@@ -7,13 +7,46 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** ✅ Phase 3 (Claude Integration) — **ALL quality gates green including T036**. Backend 119 pytest, frontend 153 vitest; ruff + ESLint + tsc clean; mutmut 89.8% (243/249 survivors documented); Stryker 89.80% (15 survivors documented). Phase 2 live-app gates T066–T068 and PR #4 also still open.
-**Last updated:** 2026-06-24
-**Next session goal:** Open the Phase 3 PR (branch `claude/speckit-specify-web-check-1xj6ix` → `main`). Phase 2 PR #4 + T066–T068 remain open from before.
+**Phase:** 🟡 Phase 4 (Backup Automation) — **code-complete, all automated gates green; Pi-only manual gates remaining.** Backend 130 pytest; ruff clean; mutmut full run 1150 mutants / 861 killed, `backup.py` 31 survivors all documented (equivalent/cosmetic). The end-to-end backup run + recovery test (quickstart §3–§4, FR-012) are **Pi-only and not yet executed** — they must be run by the operator on the Pi and recorded here. Phase 3 PR, Phase 2 PR #4 + T066–T068 also still open from before.
+**Last updated:** 2026-06-28
+**Next session goal:** Execute the Pi-only manual validation — trigger `budget-backup.service`, confirm a GitHub commit + `SUCCESS` log line (quickstart §3), then run the recovery procedure (quickstart §4 / README "Backup & Recovery") and record completion here. Then open the Phase 4 PR (branch `feature/004-backup-automation` → `main`).
 
 ---
 
 ## Phase Completion Log
+
+### 🟡 Phase 4 — Backup Automation: implementation (2026-06-28)
+
+Branch `feature/004-backup-automation`. Tasks **T001–T021 complete** (automated portion).
+The Pi-only end-to-end and recovery tests (quickstart §3–§4, FR-012) are **not yet run** —
+they must be executed by the operator on the Pi and recorded here.
+
+**What was built:**
+- `backend/backup.py` (NEW) — testable backup logic: `copy_database` (SQLite online-backup; rejects a missing/zero-length source), `verify_integrity` (`PRAGMA integrity_check`), `build_export` (envelope `{exported_at, schema_version: 1, data: build_budget_context(session)}`), `write_export` (serialise + `json.loads` re-parse verify *before* writing), `run_backup`, and a thin `main()` CLI that catches `BackupError` → stderr + `sys.exit(1)`.
+- `backend/tests/test_backup.py` (NEW) — 11 tests: copy round-trip, integrity-detects-corruption, export envelope shape, JSON-verify-rejects-malformed, empty-DB, no-secrets, missing/zero-length source, CLI success path, CLI required-args.
+- `backend/tests/conftest.py` — added the `seeded_db` fixture (file-backed SQLite + session, exposing `.session` and `.db_path`).
+- `scripts/backup.sh` (NEW) — Pi-only orchestrator: `flock` guard, runs `backup.py`, explicit `git add` (never `-A`), clean no-change exit, commit+push, timestamped `SUCCESS`/`FAILED` to the local log on **every** exit path.
+- `scripts/systemd/budget-backup.service` + `budget-backup.timer` (NEW) — `oneshot` service (`User=pi`, EnvironmentFile + ExecStart under `/home/pi/projects/budget-planner`) and nightly timer `OnCalendar=*-*-* 02:30:00` with `Persistent=true` (catch-up, FR-001).
+- `scripts/backup-repo.gitignore` (NEW) — ignore-all-except-artifacts for the backup repo (secret-leak guard, FR-007).
+- `README.md` (NEW) — Backup & Recovery: Pi setup, systemd install, verify, recovery procedure, JSON-only fallback.
+- `docs/budget-planner.feature` — replaced the stale `Feature: Backup` block with clarified US1/US2/US3 scenarios.
+- `backend/pyproject.toml` — added `backup.py` to `[tool.mutmut] paths_to_mutate`.
+- `MUTANTS.md` — Phase 4 section: 31 `backup.py` survivors, all equivalent/cosmetic.
+
+**Gates:** ruff clean; 130 pytest pass; mutmut full run 1150 mutants / 861 killed; `backup.py` 31 documented survivors (no behavioural gap).
+
+**Spec remediation applied before coding (from `/speckit-analyze`):** T010 reworded to separate `BackupError`-raising functions from the CLI exit (A1); added T009a missing/zero-length-source test (G1); CLAUDE.md cron→systemd reconciled (I1); FR-004 amendments scope added (I2).
+
+**Decisions / assumptions:**
+- Pi deploy path `/home/pi/projects/budget-planner` and service user `pi` were chosen by the user (needed for absolute `ExecStart`/`EnvironmentFile`/`User=` in the `.service` unit).
+- `backup.py` functions **raise** `BackupError`; only `main()` converts to a non-zero exit (keeps the logic unit-testable).
+- The `seeded_db` fixture is **file-backed** (not in-memory) so the online-backup copy can read the source file.
+
+**Intentional (do NOT "fix"):**
+- `scripts/backup.sh` + systemd units are **Pi-only**, never run in CI/local (FR-014); verified manually on the Pi.
+- The 31 surviving `backup.py` mutants are equivalent/cosmetic (CLI help/description text, error-message strings, JSON whitespace, case-insensitive SQL/codec, stderr diagnostics, export-timestamp tz) — documented in `MUTANTS.md`; do not chase them.
+
+**Next (Pi-only, operator):** run quickstart §3 (trigger the service, confirm a GitHub commit + `SUCCESS` log) and §4 (recovery + JSON-fallback), then record completion here.
 
 ### ✅ Phase 3 — Claude Integration: manual validation T036 (2026-06-24)
 
@@ -269,6 +302,7 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | Claude error/refusal status (Phase 3) | contracts/claude-api.md sketched a 409 for mid-turn write failure | A tool failure is surfaced to Claude as a tool error; the whole turn is rolled back and the endpoint returns **200** with the model's explanation and `writes: []` (only outright API unavailability returns 502) | Letting Claude explain ("which insurance bill?", "I can't change a previous month") is friendlier than a raw 409 and still satisfies FR-015 (no data change, no amendment). The 409 path was an early design sketch, not a requirement. |
 | Undo of a deletion (Phase 3) | FR-017 reverts "the most recent Claude write" generally | Undo handles **created** (delete the entity) and **field-update** (restore old value) reversals; undoing a Claude *deletion* returns 409 "not supported" | Re-creating a deleted entity from the amendment's summary string is lossy (category/recurring/due-date aren't recorded). No Gherkin undo scenario undoes a deletion. Revisit if needed (would require storing full entity state on delete). |
 | Non-streaming responses (Phase 3) | not specified | `POST /api/claude` returns one complete JSON response per turn (no SSE) | Clarification 2026-06-20 — simpler on a Pi/LAN; streaming can be added in Phase 5 polish. |
+| Scheduling mechanism (Phase 4) | spec + CLAUDE.md said "nightly **cron** job" | **systemd timer** `budget-backup.timer` (`OnCalendar=*-*-* 02:30:00` + `Persistent=true`) triggering `oneshot` `budget-backup.service` | The 2026-06-24 clarification requires a run missed while the Pi was off to catch up on next boot; plain cron can't. The Pi already runs the app under systemd, so a `Persistent` timer is the native, zero-extra-dependency fit. CLAUDE.md reconciled to "systemd timer" in this phase. |
 
 ## Known issues / intentional oddities (do NOT "fix")
 

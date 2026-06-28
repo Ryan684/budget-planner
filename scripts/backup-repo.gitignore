@@ -1,0 +1,11 @@
+# .gitignore for the PRIVATE BACKUP REPOSITORY (not this source repo).
+#
+# During Pi setup, copy this file into the cloned backup repo as its `.gitignore`
+# (see README "Backup & Recovery"). It ignores everything except the two backup
+# artifacts and the repo's own README/.gitignore, so a stray file — e.g. an
+# accidentally-placed `.env` — can never be committed and leak a secret (FR-007).
+*
+!budget.db
+!budget-export.json
+!README.md
+!.gitignore

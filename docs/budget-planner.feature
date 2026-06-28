@@ -468,21 +468,61 @@ Feature: Amendments Log
 
 
 Feature: Backup
+  # Phase 4 — clarified 2026-06-24: full-history JSON export, integrity
+  # verification before commit, a stable database filename (the repo's commit
+  # history is the version timeline), a local run log, catch-up scheduling, and
+  # a tested recovery procedure.
 
-  Scenario: Nightly backup completes successfully
-    Given the cron job is configured
-    When the scheduled time passes
-    Then a new commit appears in the private GitHub backup repo
-    And it contains both the SQLite file and a JSON export of current and previous month
+  # --- User Story 1: unattended nightly offsite backup ---
 
-  Scenario: Backup contains readable JSON
-    Given a nightly backup has completed
-    When I open the JSON export
-    Then it contains all income, bills, account balances, and amendments for the exported months
+  Scenario: Nightly offsite backup completes successfully
+    Given the scheduled backup has been configured on the Pi with repository access
+    When the nightly schedule fires
+    Then a consistent copy of the database and a freshly generated full-history JSON export are committed and pushed to the private backup repository
+    And the run records a timestamped success in the local backup log
+
+  Scenario: A backup is verified before it is committed
+    Given a backup run has produced a database copy and a JSON export
+    When the database copy fails its SQLite integrity check or the JSON export does not parse
+    Then the run fails with a non-zero exit and a logged reason
+    And no commit or push is made over the previous good backup
+
+  Scenario: The database is stored under a stable filename
+    Given a successful backup last night
+    When the routine runs again tonight with changed budget data
+    Then a new commit is pushed under the same database filename
+    And the previous version remains recoverable from the repository history
+
+  Scenario: Unchanged data produces no misleading commit
+    Given the budget data is unchanged since the last successful run
+    When the routine runs
+    Then it completes successfully without creating an empty or erroneous commit
+
+  Scenario: A missed run catches up on next boot
+    Given the Pi was powered off at the scheduled backup time
+    When the Pi next boots
+    Then the missed backup run executes rather than being skipped until the following night
+
+  # --- User Story 2: reliable recovery from backup ---
+
+  Scenario: Recovery from the backup repository
+    Given a populated private backup repository
+    And the live SQLite database has been lost or corrupted
+    When an operator follows the recovery procedure to restore the database file and restart the app
+    Then the app shows the same months, income, bills, accounts, and balances as the last backup
+
+  Scenario: The JSON export is a standalone human-readable fallback
+    Given a populated private backup repository
+    And the binary database file is unreadable
+    When an operator opens the JSON export
+    Then every month's income, bills, and surplus and all account balances with their snapshot history are present and human-readable
     And it is valid JSON readable without the app
 
-  Scenario: Recovery from backup
-    Given the SQLite file has been lost or corrupted
-    When I clone the backup repo and copy the most recent DB file to the data directory
-    And restart the app
-    Then all budget data is restored to the state of the last backup
+  # --- User Story 3: visibility into backup health ---
+
+  Scenario: A failed run is recorded and leaves the previous good backup intact
+    Given the network or the remote repository is unavailable
+    When the routine runs
+    Then it records a timestamped failure with a reason in the local backup log and exits non-zero
+    And the previous good backup in the repository is unchanged
+    And the next scheduled run can succeed once the failure is resolved
