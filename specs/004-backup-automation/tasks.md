@@ -58,16 +58,17 @@ description: "Task list for Phase 4 — Backup Automation"
 - [ ] T007 [US1] Write failing test `test_json_verify_rejects_malformed_json` in `backend/tests/test_backup.py` — patch `json.dumps` (or the file write) to produce invalid JSON, call the export function, assert `BackupError` is raised before the file is written or confirmed
 - [ ] T008 [US1] Write failing test `test_empty_db_backup_succeeds` in `backend/tests/test_backup.py` — create a fresh empty DB (schema only, no rows), run the full backup routine to `tmp_path`, assert both output files are written, the DB copy passes integrity check, and the JSON parses without error
 - [ ] T009 [US1] Write failing test `test_no_secrets_in_export` in `backend/tests/test_backup.py` — run the export on `seeded_db`, serialise the result to a string, assert that none of the strings `ANTHROPIC_API_KEY`, `APP_PIN`, `sk-ant`, `.env` appear anywhere in the serialised JSON
+- [ ] T009a [US1] Write failing test `test_missing_source_db_fails` in `backend/tests/test_backup.py` — point the source DB path at (a) a missing file and (b) a zero-length file, run the backup routine to `tmp_path`, assert it raises `BackupError` (and the CLI exits non-zero) and leaves no "verified" artifact — covering the spec edge case "database file missing or zero-length at backup time" (spec.md Edge Cases / FR-009) and the source-missing/empty exit code in `specs/004-backup-automation/contracts/backup-cli.md` §A
 
 ### Implementation for User Story 1
 
-- [ ] T010 [US1] Implement `backend/backup.py` — `argparse` CLI with `--db-out` and `--json-out` required args; SQLite online-backup copy via `sqlite3.connect(src_path).backup(sqlite3.connect(db_out))`; `PRAGMA integrity_check` on the copy (abort with stderr + sys.exit(1) if result ≠ single `'ok'`); JSON export envelope `{"exported_at": <UTC ISO-8601>, "schema_version": 1, "data": build_budget_context(session)}`; `json.loads` round-trip verify on the serialised string; write `--json-out`; exit 0 on full success — match the contract in `specs/004-backup-automation/contracts/backup-cli.md` §A exactly; add inline comment justifying direct `sqlite3` use (ORM maintenance exception per constitution §III)
-- [ ] T011 [US1] Run `pytest backend/tests/test_backup.py` and confirm all six tests (T004–T009) pass against the `backend/backup.py` implementation from T010; fix any implementation gaps until all pass
+- [ ] T010 [US1] Implement `backend/backup.py` — define a `BackupError` exception; structure the correctness logic as functions that **raise `BackupError`** on any failure (so they are unit-testable per T005/T007/T009a — these functions never call `sys.exit`), plus a thin `argparse` CLI `main()` that catches `BackupError`, writes a short reason to **stderr**, and calls `sys.exit(1)` (the CLI entrypoint is the only place that exits). CLI takes required `--db-out` and `--json-out` args; SQLite online-backup copy via `sqlite3.connect(src_path).backup(sqlite3.connect(db_out))`; `PRAGMA integrity_check` on the copy (raise `BackupError` if result ≠ single `'ok'`); JSON export envelope `{"exported_at": <UTC ISO-8601>, "schema_version": 1, "data": build_budget_context(session)}`; `json.loads` round-trip verify on the serialised string (raise `BackupError` if it does not re-parse) before writing `--json-out`; exit 0 on full success — match the contract in `specs/004-backup-automation/contracts/backup-cli.md` §A exactly; add inline comment justifying direct `sqlite3` use (ORM maintenance exception per constitution §III)
+- [ ] T011 [US1] Run `pytest backend/tests/test_backup.py` and confirm all seven tests (T004–T009, T009a) pass against the `backend/backup.py` implementation from T010; fix any implementation gaps until all pass
 - [ ] T012 [P] [US1] Write `scripts/backup.sh` — POSIX shell; `set -euo pipefail`; load `.env.production` (if present); acquire non-blocking `flock` on `$BACKUP_LOCK_FILE` (exit non-zero if held — concurrent run guard); `cd backend && python backup.py --db-out "$BACKUP_REPO_DIR/budget.db" --json-out "$BACKUP_REPO_DIR/budget-export.json"` (abort on non-zero exit); `cd "$BACKUP_REPO_DIR" && git add budget.db budget-export.json` (explicit filenames only — never `git add -A`); `git diff --cached --quiet` → if true, append `[<UTC ts>] SUCCESS` to `$BACKUP_LOG_FILE` and exit 0 without committing; else `git commit -m "Backup $(date -u +%Y-%m-%dT%H:%M:%SZ)"` then `git push`; append outcome line to `$BACKUP_LOG_FILE` (SUCCESS or `FAILED: <stage>`); exit non-zero on any failure — match contract in `specs/004-backup-automation/contracts/backup-cli.md` §B
 - [ ] T013 [P] [US1] Write `scripts/systemd/budget-backup.service` — `Type=oneshot`; `EnvironmentFile=` pointing to the production `.env.production` path; `ExecStart=` invoking `scripts/backup.sh` using its absolute path; runs as the app user — per `specs/004-backup-automation/contracts/backup-cli.md` §C
 - [ ] T014 [P] [US1] Write `scripts/systemd/budget-backup.timer` — `[Timer]` section: `OnCalendar=*-*-* 02:30:00`, `Persistent=true` (triggers catch-up run on next boot if Pi was off at scheduled time — FR-001); `[Install]` section: `WantedBy=timers.target` — per `specs/004-backup-automation/contracts/backup-cli.md` §C
 
-**Checkpoint**: At this point, `backend/backup.py` passes all six tests, `scripts/backup.sh` is ready to invoke, and the systemd units are ready to install. US1 is independently testable on the Pi.
+**Checkpoint**: At this point, `backend/backup.py` passes all seven tests, `scripts/backup.sh` is ready to invoke, and the systemd units are ready to install. US1 is independently testable on the Pi.
 
 ---
 
@@ -113,7 +114,7 @@ description: "Task list for Phase 4 — Backup Automation"
 
 - **Setup (Phase 1)**: No dependencies — start immediately
 - **Foundational (Phase 2)**: Depends on Phase 1 — BLOCKS all US1 test writing
-- **US1 (Phase 3)**: Depends on Phase 2; tests T004–T009 must be written and failing before T010
+- **US1 (Phase 3)**: Depends on Phase 2; tests T004–T009 and T009a must be written and failing before T010
 - **US2 (Phase 4)**: Depends on US1 completion (T010–T014 done) so filenames/paths are known
 - **US3 (Phase 5)**: Depends on T012 (`backup.sh` written) — audits and extends it
 - **Polish (Phase 6)**: Depends on all user story phases being complete
@@ -126,8 +127,8 @@ description: "Task list for Phase 4 — Backup Automation"
 
 ### Within User Story 1
 
-- T004–T009 are sequential (all write to the same `backend/tests/test_backup.py`)
-- T010 depends on T004–T009 being written (TDD gate)
+- T004–T009 and T009a are sequential (all write to the same `backend/tests/test_backup.py`)
+- T010 depends on T004–T009 and T009a being written (TDD gate)
 - T011 depends on T010 (verifies the implementation passes the tests)
 - T012, T013, T014 can run in parallel with each other after T010 (different files; all follow contracts already defined)
 

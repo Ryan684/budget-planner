@@ -130,8 +130,9 @@ or the failure reason.
   filename; dated/versioned history is provided by the repository's commit history, not by
   re-timestamping the binary file each night.
 - **FR-004**: The system MUST generate a full-history JSON export covering every month's income,
-  bills, and surplus, plus all account balances and their snapshot history, as a human-readable
-  fallback independent of the binary database file. The JSON is a manual fallback only — automated
+  bills, and surplus, plus all account balances and their snapshot history and the amendments log
+  (i.e. the full `build_budget_context` payload), as a human-readable fallback independent of the
+  binary database file. The JSON is a manual fallback only — automated
   reconstruction of the database from the JSON is explicitly out of scope (the binary `.db` copy is
   the restore path).
 - **FR-004a**: Before committing/pushing, the system MUST verify the backup artifacts: a SQLite
