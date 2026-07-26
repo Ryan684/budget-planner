@@ -14,6 +14,21 @@ things go wrong (Pi/backend offline, Anthropic API down, a nightly backup that f
 complete README so the whole system can be stood up on a fresh Pi. No new budgeting features —
 this phase is about trust, safety, and operability.
 
+## Clarifications
+
+### Session 2026-07-26
+
+- Q: When viewing a previous month, what exactly becomes read-only? → A: Income and bills are
+  locked; the month's free-text notes remain editable on any month.
+- Q: Which month counts as the editable "current" month? → A: The month whose `YYYY-MM` equals the
+  current calendar month; both earlier months and any future-dated months are read-only for income
+  and bills.
+- Q: How should the frontend PIN gate verify the entered PIN? → A: The frontend posts the PIN to a
+  minimal backend verify endpoint that checks it against the configured PIN; the PIN value is never
+  shipped in the client bundle.
+- Q: Is the backup-staleness threshold fixed or configurable? → A: Configurable via an environment
+  variable (`BACKUP_STALE_HOURS`), default 36 hours.
+
 ## User Scenarios & Testing *(mandatory)*
 
 ### User Story 1 - Optional PIN protects the app (Priority: P1)
@@ -143,10 +158,16 @@ complete the end-to-end checklist with no undocumented steps required.
 
 - **Unlock persistence**: reloading the page mid-session keeps the app unlocked; only ending the
   browser session re-locks it. There is no attempt lockout/throttle in the MVP.
-- **No previous months yet**: when only the current month exists, read-only logic never triggers
-  and everything is editable.
-- **"Current month" determination**: the current (editable) month is the most recent month by
-  `YYYY-MM`; all earlier months are read-only.
+- **No previous months yet**: when only the current calendar month exists, read-only logic never
+  triggers and everything is editable.
+- **Editable-month determination**: the editable month is the one whose `YYYY-MM` equals the
+  current calendar month; earlier months and any future-dated months are read-only for income and
+  bills.
+- **Current calendar month not yet created**: if no budget month matches the current calendar
+  month, no month's income/bills are editable until that month is created (typically via
+  carry-forward); existing months remain read-only.
+- **Future month created ahead**: a month created before its calendar month arrives is read-only
+  for income and bills until that month becomes the current calendar month.
 - **Malformed/partial backup log**: an unreadable or partial log is treated as "unknown" status —
   no false failure banner.
 - **Backup timer stopped**: an old SUCCESS with nothing since crosses the staleness threshold and
@@ -173,14 +194,21 @@ complete the end-to-end checklist with no undocumented steps required.
 - **FR-004**: On an incorrect PIN the app MUST show an error, remain locked, and reveal no data.
 - **FR-005**: The PIN MUST NOT be included in any data sent to Claude/the Anthropic API, nor in
   any backup export.
+- **FR-005a**: The frontend MUST verify the entered PIN by calling a minimal backend endpoint that
+  checks it against the configured PIN; the configured PIN value MUST NOT be embedded in the
+  delivered frontend bundle. (The rest of the API remains unauthenticated — see Assumptions.)
 
 **Previous-month read-only (US2)**
 
-- **FR-006**: When a previous (non-current) month is being viewed, the UI MUST NOT present add,
-  edit, or delete controls for that month's income entries or bills.
-- **FR-007**: The current month MUST remain fully editable (add/edit/delete income and bills).
+- **FR-006**: When a non-editable month is being viewed, the UI MUST NOT present add, edit, or
+  delete controls for that month's income entries or bills. The month's free-text notes remain
+  editable on any month.
+- **FR-007**: The editable month is the one whose `YYYY-MM` equals the current calendar month;
+  only it allows add/edit/delete of income and bills. Both earlier months and any future-dated
+  months are read-only for income and bills.
 - **FR-008**: The backend MUST reject create/update/delete of income entries and bills belonging
-  to a non-current month with a clear read-only error, as defence-in-depth behind the UI.
+  to any month other than the current calendar month with a clear read-only error, as
+  defence-in-depth behind the UI. Editing a month's notes is not restricted.
 - **FR-009**: Account balances MUST remain editable regardless of which month is being viewed
   (accounts are not month-scoped).
 - **FR-010**: Carry-forward MUST continue to work — reading a previous month to populate a new
@@ -189,8 +217,8 @@ complete the end-to-end checklist with no undocumented steps required.
 **Error states (US3)**
 
 - **FR-011**: When the backend is unreachable, every data screen MUST show a clear, non-technical
-  error state with a retry action within a few seconds, never an indefinite spinner or blank
-  screen.
+  error state with a retry action within ~10 seconds (see SC-004), never an indefinite spinner or
+  blank screen.
 - **FR-012**: When the Anthropic API is unavailable, the Claude screen MUST show a friendly
   error, preserve the current conversation and the user's typed message, and allow a retry.
 - **FR-013**: A failed write (add/edit/delete) MUST surface an error and MUST leave the UI showing
@@ -198,7 +226,8 @@ complete the end-to-end checklist with no undocumented steps required.
 - **FR-014**: The backend MUST expose the most recent nightly-backup outcome (status and
   timestamp) derived from the Phase 4 backup log.
 - **FR-015**: The dashboard MUST show a warning banner when the last backup FAILED, or when no
-  successful backup has occurred within the staleness threshold; it MUST show no banner when the
+  successful backup has occurred within the staleness threshold (configurable via the
+  `BACKUP_STALE_HOURS` environment variable, default 36 hours); it MUST show no banner when the
   last backup succeeded within the threshold.
 - **FR-016**: The backup-status source MUST degrade gracefully when the log is absent or
   unreadable (report "unknown"), and in that case the dashboard MUST NOT show a failure banner.
@@ -206,18 +235,21 @@ complete the end-to-end checklist with no undocumented steps required.
 **Documentation & end-to-end (US4)**
 
 - **FR-017**: The README MUST provide a complete fresh-Pi setup guide covering: USB SSD mount,
-  runtime prerequisites, backend and frontend systemd services, production environment config,
-  backup systemd timer + SSH key setup, PIN configuration, and Tailscale remote-access setup.
+  runtime prerequisites, backend and frontend systemd services, production environment config
+  (including the PIN and `BACKUP_STALE_HOURS`), backup systemd timer + SSH key setup, PIN
+  configuration, and Tailscale remote-access setup.
 - **FR-018**: A documented end-to-end validation checklist MUST exist that an operator follows on
   a fresh Pi to confirm every screen, a Claude query, remote access, and a backup run all work
   from the README alone.
 
 ### Key Entities *(include if feature involves data)*
 
-- **Unlock state**: whether the current browser session has passed the PIN gate. Frontend
-  session-scoped only; not persisted server-side and not stored in the database.
-- **Current month**: the most recent budget month by `YYYY-MM`; the only month that is editable.
-  All earlier months are read-only. A derived concept, not a new stored field.
+- **Unlock state**: whether the current browser session has passed the PIN gate (the PIN being
+  checked by the backend verify endpoint, not compared in the browser). Frontend session-scoped
+  only; not persisted server-side and not stored in the database.
+- **Current month**: the budget month whose `YYYY-MM` equals the current calendar month; the only
+  month whose income and bills are editable. Earlier months and any future-dated months are
+  read-only (their notes remain editable). A derived concept, not a new stored field.
 - **Backup status**: the latest backup outcome derived from the Phase 4 backup log — last result
   (`SUCCESS` / `FAILED` / `unknown`) and the timestamp of the last run, plus whether that run is
   within the staleness threshold. Read-only and derived; not stored in the app database.
@@ -242,21 +274,34 @@ complete the end-to-end checklist with no undocumented steps required.
 
 ## Assumptions
 
-- **Frontend-only PIN gate** (clarified 2026-07-26): the PIN is enforced by the frontend as an
-  access screen; the backend API is not authenticated. API access control for the MVP relies on
-  the network boundary (home WiFi + Tailscale). Because the gate is client-side, the configured
-  PIN value is present in the app delivered to the browser and is not a defence against a
-  determined attacker on the network — it is a convenience lock for a self-hosted family app.
-  This is an accepted MVP security posture; API authentication is a post-MVP consideration.
+- **Frontend PIN gate, backend-verified** (clarified 2026-07-26): the PIN is enforced by the
+  frontend as an access screen, but the entered PIN is verified by a minimal backend endpoint, so
+  the configured PIN value is not shipped in the client bundle. The rest of the API is not
+  authenticated; API access control for the MVP relies on the network boundary (home WiFi +
+  Tailscale). This is a convenience lock for a self-hosted family app, not a defence against a
+  determined attacker with network access; full API authentication is a post-MVP consideration.
 - Unlock persists for the browser session (re-locks when the session ends); no attempt
   lockout/throttling in the MVP.
 - **Backup failure surfaced in-app** (clarified 2026-07-26): the backend reads the Phase 4
   `SUCCESS`/`FAILED` backup log and exposes the latest outcome; the dashboard shows a warning
-  banner on failure or staleness. Default staleness threshold is 36 hours (one missed nightly run
-  plus margin); the exact value is an implementation detail and may be made configurable.
-- "Current month" = the most recent month by `YYYY-MM`. Previous-month read-only is enforced in
-  both the UI and the backend (defence-in-depth); account balances are exempt as they are not
-  month-scoped.
+  banner on failure or staleness. The staleness threshold is configurable via the
+  `BACKUP_STALE_HOURS` environment variable, default 36 hours (one missed nightly run plus margin).
+- "Current month" = the month whose `YYYY-MM` equals the current calendar month; earlier and
+  future-dated months are read-only for income and bills (notes stay editable). Read-only is
+  enforced in both the UI and the backend (defence-in-depth); account balances are exempt as they
+  are not month-scoped.
+- **Single, uniform definition of "current month"** (reconciled 2026-07-26): the calendar-month
+  definition applies everywhere — the editable month in the UI, the month Claude writes to, and the
+  dashboard default. This **supersedes the shipped Phase 2/3 behaviour** where "current month"
+  meant the *latest* month (`YYYY-MM` max), so Phase 5 changes `useMonths`, the Claude write-target
+  resolution (`latest_month_id`), and the dashboard default accordingly, and records a Phase 3
+  divergence. The constitution's Principle IV wording ("active current month") is reinterpreted as
+  the calendar month and updated in lockstep with `CLAUDE.md` (done — Constitution v1.2.0,
+  2026-07-26). **Canonical term**: use "current month" (≡ the current calendar month) throughout;
+  "editable month" and "current calendar month" are synonyms for the same concept.
+- The current calendar month is derived from **local time on the Pi** (the household's timezone),
+  not UTC, since "this month" is a local human concept; when today's month has not been created,
+  no month's income/bills are editable and Claude has no write target until it is created.
 - The fresh-Pi end-to-end test (FR-018) is a **documented manual checklist executed by the
   operator on real Pi hardware**, consistent with Phase 4's Pi-only manual gates — not an
   automated CI test. It depends on Phase 4 being deployed and validated on the Pi.
