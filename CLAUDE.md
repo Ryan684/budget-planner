@@ -203,8 +203,9 @@ financial picture as structured JSON so Claude can analyse and forecast across m
 - The conversation history for the current session
 
 **Never send:** the raw database file, application secrets, `.env`, or the PIN — only the
-structured financial data above. Writes are confined to the active current month — previous
-months are read-only. (Amended 2026-06-18; mirrored in constitution Principle IV v1.1.0.)
+structured financial data above. Writes are confined to the current month — the month whose
+`YYYY-MM` matches the current calendar month (local time); previous and future-dated months are
+read-only. (Amended 2026-07-26; mirrored in constitution Principle IV v1.2.0.)
 
 ### Write behaviour
 Claude can write directly to the database via tool calls exposed by the backend. The confirm-then-act pattern is enforced in the system prompt — Claude must state its intended action and effect before executing.
@@ -424,5 +425,5 @@ Use the `/end-session` slash command at the end of each Claude Code session. Thi
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/004-backup-automation/plan.md`
+`specs/005-polish-hardening/plan.md`
 <!-- SPECKIT END -->

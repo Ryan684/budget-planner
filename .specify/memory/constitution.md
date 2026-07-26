@@ -30,7 +30,10 @@ surplus), all account balances and their historical changes, and the amendments 
 supplied as structured JSON, never the raw database file, application secrets, `.env`, or the
 PIN. Every Claude write is tagged `source: "claude"` with a human-readable `reason`, states
 its effect before executing, and returns recalculated figures. Writes are confined to the
-active current month — previous months are read-only.
+**current month** — defined as the month whose `YYYY-MM` matches the current calendar month in
+local time — while previous and future-dated months are read-only. This single definition of
+"current month" governs both user edits and Claude writes (income and bills; a month's notes and
+the non-month-scoped account balances remain editable).
 
 ### V. Data Durability & Integrity
 All monetary values are stored as REAL/float, displayed in GBP. All timestamps stored UTC,
@@ -76,7 +79,15 @@ gates before merge to `main`. The phased plan (0: infra, 1: data layer, 2: UI, 3
 artifacts live under `specs/NNN-*/`; `docs/progress-log.md` is the authoritative session-handoff
 record.
 
-**Version**: 1.1.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-06-18
+**Version**: 1.2.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-07-26
+
+> **1.2.0 (2026-07-26)** — Principle IV: the "current month" that bounds writes is now explicitly
+> the current **calendar** month (local `YYYY-MM`), superseding the prior de-facto "latest month"
+> interpretation in the shipped Phase 2/3 code. A single definition governs user edits, Claude
+> writes, and the dashboard's editable month; previous **and future-dated** months are read-only
+> for income and bills (a month's notes and account balances remain editable). Rationale: editing
+> should track the real calendar month, not whichever month was created most recently. Mirrored in
+> `CLAUDE.md`. See `specs/005-polish-hardening/`.
 
 > **1.1.0 (2026-06-18)** — Principle IV renamed *Privacy & Minimal AI Context* → *Privacy & AI
 > Data Boundary*. Claude's read scope widened from "current month + one explicitly requested
