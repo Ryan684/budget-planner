@@ -38,7 +38,7 @@ truth and each feature's `specs/NNN-*/plan.md` + `tasks.md` hold its detailed en
 - **AI:** Anthropic API (`claude-sonnet-4-6`)
 - **Hosting:** Raspberry Pi 5 (production), localhost (development)
 - **Remote access:** Tailscale (infrastructure only, outside app scope)
-- **Backup:** Nightly cron job → private GitHub repo via SSH
+- **Backup:** Nightly systemd timer (with catch-up) → private GitHub repo via SSH
 
 ### Project Structure
 ```
@@ -71,7 +71,7 @@ budget-planner/
 │   ├── vite.config.ts
 │   └── package.json
 ├── scripts/
-│   └── backup.sh            # Nightly backup cron script
+│   └── backup.sh            # Nightly backup script (run by a systemd timer)
 ├── docs/
 │   ├── budget-planner-spec.md
 │   ├── budget-planner.feature
@@ -141,7 +141,7 @@ This avoids CORS issues in development without any special backend config.
 SQLite file lives at `./data/budget-dev.db` in development. This directory is gitignored. Do not commit the database file.
 
 ### Backup script
-The nightly backup cron job is Pi-only. Do not run or test `scripts/backup.sh` in local development.
+The nightly backup systemd timer is Pi-only. Do not run or test `scripts/backup.sh` in local development.
 
 ---
 
@@ -407,7 +407,7 @@ Use the `/end-session` slash command at the end of each Claude Code session. Thi
 | 1 | Data layer — schema, CRUD endpoints, carry-forward logic, budget calculations, tests | Opus |
 | 2 | Core UI — all screens functional against real data, no Claude yet | Sonnet |
 | 3 | Claude integration — chat UI, context injection, direct writes, undo | Sonnet |
-| 4 | Backup automation — cron job, JSON export, Git push, recovery test | Sonnet |
+| 4 | Backup automation — systemd timer, JSON export, Git push, recovery test | Sonnet |
 | 5 | Polish & hardening — PIN, error states, README, end-to-end test | Sonnet |
 
 ---
@@ -424,5 +424,5 @@ Use the `/end-session` slash command at the end of each Claude Code session. Thi
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,
 shell commands, and other important information, read the current plan:
-`specs/003-claude-integration/plan.md`
+`specs/004-backup-automation/plan.md`
 <!-- SPECKIT END -->

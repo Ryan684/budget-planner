@@ -317,3 +317,81 @@ function directly.
 `claude_client.x_create_anthropic_client__mutmut_1,2,3,4,5,6`
 
 Acceptable: untestable at the unit-test level; the API key wiring is verified by T036.
+
+---
+
+# Surviving Mutants — Phase 4 (Backup Automation)
+
+Mutation testing was run with **mutmut 3.x** with `backend/backup.py` added to
+`[tool.mutmut] paths_to_mutate`. The full configured run produced **1150 mutants,
+861 killed**; scoped to the new module, **`backup.py` has 31 surviving mutants**, all
+investigated by reading each diff. Every survivor is **equivalent or cosmetic** — none
+represents an unkilled behavioural gap. The correctness-critical paths (consistent copy,
+integrity detection, export envelope, JSON-parse verification, missing/zero-length
+source, the CLI failure→exit-1 and success paths, and the required CLI args) are all
+killed by `tests/test_backup.py`.
+
+## Group 1 — Error-message-only mutants (4)
+
+The exception **type** (`BackupError`) and the **fact that it is raised** are asserted by
+the tests; the human-readable message text is not. Replacing the f-string with `None`
+changes only the message, not behaviour.
+
+| Mutant ID | Mutation |
+|---|---|
+| `backup.x_copy_database__mutmut_7` | `BackupError(f"source database missing or empty: {src}")` → `BackupError(None)` |
+| `backup.x_verify_integrity__mutmut_9` | `BackupError(f"integrity check could not run: {exc}")` → `BackupError(None)` |
+| `backup.x_verify_integrity__mutmut_13` | `BackupError(f"integrity check failed: {result}")` → `BackupError(None)` |
+| `backup.x_write_export__mutmut_8` | `BackupError(f"generated JSON did not parse: {exc}")` → `BackupError(None)` |
+
+## Group 2 — Case-insensitive SQL / codec name (3)
+
+SQLite `PRAGMA` keywords are case-insensitive and `"utf-8"`/`"UTF-8"` name the same codec,
+so these produce byte-identical behaviour.
+
+| Mutant ID | Mutation | Why equivalent |
+|---|---|---|
+| `backup.x_verify_integrity__mutmut_7` | `"PRAGMA integrity_check"` → `"pragma integrity_check"` | SQLite PRAGMA is case-insensitive |
+| `backup.x_verify_integrity__mutmut_8` | `"PRAGMA integrity_check"` → `"PRAGMA INTEGRITY_CHECK"` | same |
+| `backup.x_write_export__mutmut_15` | `encoding="utf-8"` → `encoding="UTF-8"` | same codec, alternate spelling |
+
+## Group 3 — JSON whitespace / encoding default (5)
+
+These change only the serialised file's whitespace or rely on the platform-default
+encoding (UTF-8 on the Pi/Linux for the ASCII budget data). The content is identical and
+the tests parse the JSON (`json.loads`), not exact bytes.
+
+| Mutant ID | Mutation |
+|---|---|
+| `backup.x_write_export__mutmut_3` | `json.dumps(export, indent=2)` → `indent=None` |
+| `backup.x_write_export__mutmut_5` | `json.dumps(export, indent=2)` → `json.dumps(export)` |
+| `backup.x_write_export__mutmut_6` | `json.dumps(export, indent=2)` → `indent=3` |
+| `backup.x_write_export__mutmut_10` | `write_text(serialised, encoding="utf-8")` → `encoding=None` |
+| `backup.x_write_export__mutmut_12` | `write_text(serialised, encoding="utf-8")` → `write_text(serialised)` |
+
+## Group 4 — Export timestamp timezone (1)
+
+| Mutant ID | Mutation | Why acceptable |
+|---|---|---|
+| `backup.x_build_export__mutmut_4` | `datetime.now(UTC)` → `datetime.now(None)` | `exported_at` is formatted with a literal `Z` suffix, so both produce a `…Z` string the test parses successfully. The suite asserts the format and parseability, not that the wall-clock is genuinely UTC, so this is unobservable to the tests. Low risk: `exported_at` is informational metadata, not used for any logic or restore. |
+
+## Group 5 — argparse description / help text (14)
+
+Cosmetic CLI help/description strings (and trailing-comma/keyword-removal variants that
+leave `required=True` intact). They have no effect on parsing behaviour, which is covered
+by the success, failure, and required-args tests.
+
+**Mutant IDs:** `backup.x_main__mutmut_2,3,4,5` (description); `backup.x_main__mutmut_8,11,15,16,17` (`--db-out` help); `backup.x_main__mutmut_20,23,27,28,29` (`--json-out` help)
+
+## Group 6 — stderr diagnostic message (4)
+
+The failure diagnostic printed to stderr is not asserted by any test; mutating its text,
+removing it, or redirecting the stream changes only the operator-facing message, not the
+exit behaviour (which is asserted as exit code 1).
+
+**Mutant IDs:** `backup.x_main__mutmut_43,44,45,46`
+
+---
+
+**Total Phase 4 backup.py survivors: 31** — all equivalent/cosmetic per the groups above.
+No surviving mutant represents a genuine, unkilled behavioural gap in the backup logic.

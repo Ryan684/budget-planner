@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly budget database backup to the private offsite repository
+# Network is needed for the git push; wait for it to be up.
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=pi
+# Adjust these absolute paths if the app is deployed elsewhere on the Pi.
+EnvironmentFile=/home/pi/projects/budget-planner/.env.production
+ExecStart=/home/pi/projects/budget-planner/scripts/backup.sh

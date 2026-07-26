@@ -267,9 +267,16 @@ Be concise — the user is on a phone.
 ### Mechanism
 A nightly cron job on the Pi:
 
-1. Copies the SQLite DB file to a timestamped export directory
-2. Generates a JSON export of the current and previous month
+1. Copies the SQLite DB file into the backup repo under a stable filename (git
+   history provides the dated versions — the binary DB is not re-timestamped per night)
+2. Generates a full-history JSON export (every month's income, bills, and surplus, plus
+   all account balances and their snapshot history) as the human-readable fallback
 3. Git commits and pushes to a private GitHub repository via SSH
+
+> **Amended 2026-06-24 (Phase 4):** the JSON export was widened from "current and previous
+> month" to the full multi-month history, so a JSON-only recovery loses no older months;
+> the DB copy uses a stable filename (git history = versioned backups) rather than a new
+> timestamped binary each night, to keep the backup repo lean. See `specs/004-backup-automation/spec.md`.
 
 ### Setup Requirements
 - SSH key on the Pi authorised against the GitHub repo

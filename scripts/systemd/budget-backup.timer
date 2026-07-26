@@ -1,0 +1,12 @@
+[Unit]
+Description=Nightly budget database backup timer (triggers budget-backup.service)
+
+[Timer]
+# Run nightly at 02:30 local time (low-activity hours).
+OnCalendar=*-*-* 02:30:00
+# Catch-up: if the Pi was powered off at the scheduled time, run the missed job on
+# the next boot rather than skipping until the following night (FR-001). Do not remove.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
