@@ -7,13 +7,73 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** 🟡 Phase 4 (Backup Automation) — **code-complete, all automated gates green; Pi-only manual gates remaining.** Backend 130 pytest; ruff clean; mutmut full run 1150 mutants / 861 killed, `backup.py` 31 survivors all documented (equivalent/cosmetic). The end-to-end backup run + recovery test (quickstart §3–§4, FR-012) are **Pi-only and not yet executed** — they must be run by the operator on the Pi and recorded here. Phase 3 PR, Phase 2 PR #4 + T066–T068 also still open from before.
-**Last updated:** 2026-06-28
-**Next session goal:** Execute the Pi-only manual validation — trigger `budget-backup.service`, confirm a GitHub commit + `SUCCESS` log line (quickstart §3), then run the recovery procedure (quickstart §4 / README "Backup & Recovery") and record completion here. Then open the Phase 4 PR (branch `feature/004-backup-automation` → `main`).
+**Phase:** 🟡 Phase 5 (Polish & Hardening) — **code-complete, all automated gates green; Pi-only manual gate remaining.** Backend 183 pytest, ruff clean, mutmut on the Phase 5 modules (3 documented equivalent survivors in `backup_status.py`; `routers/deps.py` "no tests" verified as a tool false negative). Frontend 204 Vitest, ESLint + `tsc --noEmit` clean, Stryker 85.63% (up from 70.96%). Quickstart Part A executed locally against a live backend — every PIN, read-only, error-state and backup-banner case behaved as specified, and the built bundle contains no PIN. **T043 (quickstart Part B, the fresh-Pi end-to-end) is Pi-only and not yet executed**, and it is still blocked by Phase 4's Pi deployment. Phase 4's Pi-only backup/recovery gates, and the Phase 2/3/4 PRs, remain open from before.
+**Last updated:** 2026-07-27
+**Next session goal:** Execute the Pi-only manual gates on the Pi, in this order: (1) Phase 4's backup end-to-end + recovery test (quickstart §3–§4), since Phase 5's backup banner depends on a live `BACKUP_LOG_FILE`; (2) Phase 5's `specs/005-polish-hardening/quickstart.md` Part B — the 11-step fresh-Pi checklist now mirrored in the README's "End-to-end validation checklist". Record completion of both here, then open the outstanding PRs.
 
 ---
 
 ## Phase Completion Log
+
+### 🟡 Phase 5 — Polish & Hardening: implementation (2026-07-27)
+
+Branch `claude/speckit-phase-5-2fj6j7`. Tasks **T001–T042 complete**; **T043 is Pi-only and
+outstanding** (see Current Status).
+
+**What was built:**
+
+*US1 — optional PIN gate*
+- `backend/routers/auth.py` (NEW) — `GET /api/pin-required` (`{required: bool}`, never the PIN) and `POST /api/verify-pin` (`hmac.compare_digest` against `settings.app_pin`; `400` when unconfigured; a wrong PIN is `200 {"ok": false}`, not an HTTP error, so the UI can tell it apart from an unreachable backend).
+- `backend/schemas.py` — `PinVerifyRequest` / `PinVerifyResponse` / `PinRequiredResponse` / `BackupStatusResponse`.
+- `frontend/src/api/auth.ts`, `src/hooks/usePinGate.ts`, `src/components/PinGate.tsx` + `.module.css` (all NEW). `App.tsx` is now a thin wrapper rendering `<PinGate><BudgetApp/></PinGate>`.
+- `backend/tests/test_auth.py`, `frontend/src/components/__tests__/PinGate.test.tsx` (NEW).
+
+*US2 — one calendar-month definition of "current month"*
+- `backend/current_month.py` (NEW) — `month_key(today)`, `current_month(session, today=)`, `current_month_id(session, today=)`. `today` is injectable so tests never touch the clock.
+- `backend/routers/deps.py` — added `current_calendar_month_id` and `require_editable_month` (403 + `READ_ONLY_DETAIL`); `latest_month_id` kept **only** for stamping account amendments.
+- `backend/routers/income.py` / `bills.py` — guard on create/update/delete, after the 404 lookup so a missing entity still wins.
+- `backend/claude_context.py`, `backend/routers/claude.py` — `current_month_id` replaces `latest_month_id` for the Claude write target and the returned summary.
+- `frontend/src/lib/dates.ts` — `currentMonthKey(now?)`, the browser-side mirror.
+- `frontend/src/hooks/useMonths.ts` — `editableMonthId` is now the calendar-month match (null if absent); new `latestMonthId` for viewing.
+- `frontend/src/screens/Dashboard.tsx` — "Create this month" prompt when `editableMonthId === null`; `App.tsx` falls back to viewing the newest month read-only.
+- `backend/tests/test_current_month.py`, `test_read_only.py` (NEW); `frontend/src/hooks/__tests__/useMonths.test.ts` (NEW).
+
+*US3 — error states + backup banner*
+- `backend/backup_status.py` (NEW) — parses the Phase 4 log's last `SUCCESS`/`FAILED` line, computes staleness against `BACKUP_STALE_HOURS`; blank/missing/unreadable/unparseable/bad-timestamp all degrade to `unknown` (no banner).
+- `backend/routers/system.py` (NEW) — `GET /api/backup-status`, always `200`.
+- `backend/config.py` — `backup_log_file` (blank default) and `backup_stale_hours` (36).
+- `frontend/src/api/system.ts`, `src/components/BackupBanner.tsx` (NEW), rendered on the dashboard.
+- `frontend/src/api/client.ts` — 10s `AbortController` timeout (`REQUEST_TIMEOUT_MS`) mapping timeouts and network failures to a retryable `ApiError(0, …)`.
+- `frontend/src/hooks/useClaudeSession.ts` + `screens/Claude.tsx` — `send` returns a boolean; on failure the optimistic user bubble is dropped, the conversation is kept, and the screen restores the draft.
+- `frontend/src/screens/Income.tsx` / `Bills.tsx` / `Accounts.tsx` — a failed write now refetches so no stale optimistic value is left.
+- `backend/tests/test_backup_status.py`, `frontend/src/api/__tests__/client.test.ts`, `src/components/__tests__/BackupBanner.test.tsx` (NEW).
+
+*US4 — operability docs*
+- `README.md` — full fresh-Pi guide (prerequisites, USB SSD via fstab, backend install, `.env.production`, frontend build, both systemd units, backup timer, Tailscale), a configuration reference table, the 11-step end-to-end validation checklist, and a local-development section.
+- `docs/budget-planner.feature` — `Feature: Polish & Hardening` block added first, before any code.
+
+**Gates:** ruff check + format clean; 183 pytest. ESLint + `tsc --noEmit` clean; 204 Vitest.
+mutmut (pinned 3.5.0) on the Phase 5 modules; Stryker 85.63%. `MUTANTS.md` and
+`frontend/MUTANTS.md` both updated. Quickstart Part A executed against a live backend.
+
+**Two real defects found by mutation testing and fixed (not just documented):**
+- `apiFetch` spread `...init` **after** `headers`, so a caller-supplied `headers` silently replaced the JSON content type — and the newly added abort `signal` would have been dropped the same way. `init` is now spread first.
+- `BackupBanner`'s "no banner" assertions queried before the status fetch settled, so they passed for the original *and* the mutant. They now wait for the fetch and flush React.
+
+**Decisions / assumptions:**
+- The current month is derived from **local** time, not UTC ("this month" is a local human concept; UTC would flip the month up to an hour early/late at a boundary). The Constitution's "timestamps stored UTC" rule governs stored timestamps, not this interaction concern.
+- The PIN gate **fails closed**: if `GET /api/pin-required` cannot be reached, the app stays locked with a retryable error rather than revealing data.
+- `mutmut` is now pinned to `==3.5.0` — 3.6.0 cannot import unmutated modules from its copied `mutants/` tree. `[tool.pytest.ini_options] pythonpath` gained `".."` for the same reason (inside `mutants/`, `"."` supplies the mutated modules and `".."` the rest).
+- Stryker's `mutate` scope widened beyond `src/lib` to the new `client.ts` / `usePinGate` / `useMonths` / `BackupBanner` logic. Both `stryker.conf.json` and `stryker.config.json` were updated (the repo carries both).
+- `frontend/src/components/Banner.tsx` gained `role="status"` so banners are assertable and announced.
+- Tests that hardcoded `2026-06` as "the current month" now use `CURRENT_MONTH` / `PREVIOUS_MONTH` from `tests/factories.py`, since the editable month tracks the real clock.
+
+**Intentional (do NOT "fix"):**
+- `routers/accounts.py` still uses `latest_month_id`. Accounts are not month-scoped; that call only stamps the amendment with the month in view. Routing it through the calendar month would make account amendments unstamped whenever today's month has not been created — a behaviour change with no requirement behind it.
+- `test_amendments_scoped_to_month` seeds the previous month's amendment via `crud.update_entity` rather than HTTP. That is deliberate: the previous month is no longer writable over the API, and the test is about the listing's month filter.
+- A wrong PIN returns `200 {"ok": false}`, not `401`. This is contractual — the frontend must distinguish "wrong PIN" from "server unreachable".
+- `PinGate` deliberately leaves the entered PIN in the box after a failed attempt so it can be corrected and resubmitted; the unlock button therefore stays enabled.
+- The rest of the API remains unauthenticated. The PIN is a convenience lock behind the LAN/Tailscale boundary, per the spec's accepted MVP posture — not an access-control mechanism.
 
 ### 🟡 Phase 4 — Backup Automation: implementation (2026-06-28)
 
