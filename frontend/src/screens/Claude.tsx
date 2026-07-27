@@ -11,7 +11,10 @@ export function ClaudeScreen() {
     e.preventDefault()
     const text = draft
     setDraft('')
-    void send(text)
+    // A failed turn puts the message back so it can be resent without retyping.
+    void send(text).then(ok => {
+      if (!ok) setDraft(text)
+    })
   }
 
   return (

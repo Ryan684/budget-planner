@@ -7,6 +7,7 @@ import { Card } from '../components/Card'
 import { SectionLabel } from '../components/SectionLabel'
 import { Row } from '../components/Row'
 import { Banner } from '../components/Banner'
+import { BackupBanner } from '../components/BackupBanner'
 import { Button } from '../components/Button'
 import { StatusPill } from '../components/StatusPill'
 import { SurplusBar } from '../components/SurplusBar'
@@ -134,6 +135,8 @@ export function DashboardScreen({
 
       {/* ── Scroll area ── */}
       <div className={styles.scroll}>
+        <BackupBanner />
+
         {readOnly && (
           <Banner tone="amber" icon="lock">
             Viewing {displayMonth} — read-only

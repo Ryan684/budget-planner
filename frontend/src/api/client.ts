@@ -1,5 +1,15 @@
 const BASE = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? '/api'
 
+/**
+ * How long to wait for the Pi before giving up. A backend that is off accepts
+ * nothing and `fetch` rejects immediately, but one that is unreachable mid-route
+ * can hang indefinitely — the timeout turns that into a retryable error state
+ * rather than an endless spinner (SC-004).
+ */
+export const REQUEST_TIMEOUT_MS = 10_000
+
+const UNREACHABLE = 'Could not reach the app. Check the connection and try again.'
+
 export class ApiError extends Error {
   readonly status: number
   readonly detail: unknown
@@ -28,10 +38,23 @@ export async function apiFetch<T>(
   init?: RequestInit,
 ): Promise<T> {
   const url = `${BASE}${path}`
-  const res = await fetch(url, {
-    headers: { 'Content-Type': 'application/json', ...init?.headers },
-    ...init,
-  })
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
+
+  let res: Response
+  try {
+    res = await fetch(url, {
+      headers: { 'Content-Type': 'application/json', ...init?.headers },
+      signal: controller.signal,
+      ...init,
+    })
+  } catch {
+    // A timeout, a refused connection, or a dropped network all read the same
+    // to the user: the app cannot be reached, and retrying is the way forward.
+    throw new ApiError(0, UNREACHABLE)
+  } finally {
+    clearTimeout(timer)
+  }
 
   if (res.status === 204) return undefined as T
 

@@ -8,7 +8,8 @@ export interface UseClaudeSessionResult {
   sending: boolean
   error: string | null
   canUndo: boolean
-  send: (text: string) => Promise<void>
+  /** Resolves false when the turn failed, so the screen can restore the draft. */
+  send: (text: string) => Promise<boolean>
   undoLast: () => Promise<void>
 }
 
@@ -26,9 +27,9 @@ export function useClaudeSession(): UseClaudeSessionResult {
   const [writeTurns, setWriteTurns] = useState<number[][]>([])
 
   const send = useCallback(
-    async (text: string) => {
+    async (text: string): Promise<boolean> => {
       const trimmed = text.trim()
-      if (!trimmed || sending) return
+      if (!trimmed || sending) return false
       setError(null)
       setSending(true)
       // capture prior conversation before showing the new user message
@@ -41,8 +42,14 @@ export function useClaudeSession(): UseClaudeSessionResult {
         if (res.writes.length > 0) {
           setWriteTurns(prev => [...prev, res.writes.map(w => w.amendment_id)])
         }
+        return true
       } catch (err: unknown) {
+        // Drop the optimistic user bubble so the conversation reflects what
+        // Claude actually received; the screen puts the text back in the box so
+        // the message can be resent without retyping (FR-012).
+        setMessages(priorConversation)
         setError(err instanceof Error ? err.message : 'Claude is unavailable right now')
+        return false
       } finally {
         setSending(false)
       }

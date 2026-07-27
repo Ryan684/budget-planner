@@ -101,20 +101,20 @@ description: "Task list for Phase 5 — Polish & Hardening"
 
 ### Tests for User Story 3 (TDD — write FIRST, confirm they FAIL) ⚠️
 
-- [ ] T025 [P] [US3] Failing pytest in `backend/tests/test_backup_status.py`: `GET /api/backup-status` parses the last `SUCCESS`/`FAILED` line + UTC timestamp; computes `stale` against `BACKUP_STALE_HOURS`; returns `status:"unknown"`, `stale:false` for a blank/missing/malformed log (per `contracts/backup-status.md`)
-- [ ] T026 [P] [US3] Failing Vitest in `frontend/src/components/__tests__/BackupBanner.test.tsx`: banner shows when `status:"failed"` or (`success` & `stale`), and is hidden when (`success` & not `stale`) or `unknown`
-- [ ] T027 [P] [US3] Failing Vitest for error states: a backend-unreachable fetch yields a retryable `StateView` error within the timeout; a Claude 502 preserves conversation + input (`frontend/src/screens/__tests__/Claude.test.tsx`); a failed write surfaces an error and refetches (`frontend/src/screens/__tests__/Income.test.tsx` or `Bills.test.tsx`)
+- [X] T025 [P] [US3] Failing pytest in `backend/tests/test_backup_status.py`: `GET /api/backup-status` parses the last `SUCCESS`/`FAILED` line + UTC timestamp; computes `stale` against `BACKUP_STALE_HOURS`; returns `status:"unknown"`, `stale:false` for a blank/missing/malformed log (per `contracts/backup-status.md`)
+- [X] T026 [P] [US3] Failing Vitest in `frontend/src/components/__tests__/BackupBanner.test.tsx`: banner shows when `status:"failed"` or (`success` & `stale`), and is hidden when (`success` & not `stale`) or `unknown`
+- [X] T027 [P] [US3] Failing Vitest for error states: a backend-unreachable fetch yields a retryable `StateView` error within the timeout; a Claude 502 preserves conversation + input (`frontend/src/screens/__tests__/Claude.test.tsx`); a failed write surfaces an error and refetches (`frontend/src/screens/__tests__/Income.test.tsx` or `Bills.test.tsx`)
 
 ### Implementation for User Story 3
 
-- [ ] T028 [P] [US3] Add the Pydantic `BackupStatusResponse` schema to `backend/schemas.py`
-- [ ] T029 [US3] Implement `backend/backup_status.py` — read `settings.backup_log_file`, scan for the last complete `SUCCESS`/`FAILED` line, extract UTC timestamp, compute `stale` vs `settings.backup_stale_hours`; missing/unreadable/unparseable ⇒ `unknown`
-- [ ] T030 [US3] Implement `backend/routers/system.py` — `GET /api/backup-status`; register the router in `backend/main.py` (depends on T029)
-- [ ] T031 [P] [US3] Implement `frontend/src/api/system.ts` — `getBackupStatus()`
-- [ ] T032 [US3] Implement `frontend/src/components/BackupBanner.tsx` (reuse the existing `Banner`) and render it on `frontend/src/screens/Dashboard.tsx` per the banner logic (depends on T031)
-- [ ] T033 [US3] Add a client-side timeout (`AbortController`, ~10s) to `frontend/src/api/client.ts` so an unreachable backend surfaces a retryable error instead of hanging (SC-004)
-- [ ] T034 [US3] Preserve the conversation and typed message on a Claude API failure (502) in `frontend/src/screens/Claude.tsx` / `frontend/src/hooks/useClaudeSession.ts`, with a friendly retryable error
-- [ ] T035 [US3] On a failed income/bills/accounts write, surface the error and refetch true state (no stale/optimistic value) in the affected screens/hooks — including the month-boundary case where the UI treated a month as editable but the backend returned `403` (browser-local vs Pi-local current month; the backend is authoritative)
+- [X] T028 [P] [US3] Add the Pydantic `BackupStatusResponse` schema to `backend/schemas.py`
+- [X] T029 [US3] Implement `backend/backup_status.py` — read `settings.backup_log_file`, scan for the last complete `SUCCESS`/`FAILED` line, extract UTC timestamp, compute `stale` vs `settings.backup_stale_hours`; missing/unreadable/unparseable ⇒ `unknown`
+- [X] T030 [US3] Implement `backend/routers/system.py` — `GET /api/backup-status`; register the router in `backend/main.py` (depends on T029)
+- [X] T031 [P] [US3] Implement `frontend/src/api/system.ts` — `getBackupStatus()`
+- [X] T032 [US3] Implement `frontend/src/components/BackupBanner.tsx` (reuse the existing `Banner`) and render it on `frontend/src/screens/Dashboard.tsx` per the banner logic (depends on T031)
+- [X] T033 [US3] Add a client-side timeout (`AbortController`, ~10s) to `frontend/src/api/client.ts` so an unreachable backend surfaces a retryable error instead of hanging (SC-004)
+- [X] T034 [US3] Preserve the conversation and typed message on a Claude API failure (502) in `frontend/src/screens/Claude.tsx` / `frontend/src/hooks/useClaudeSession.ts`, with a friendly retryable error
+- [X] T035 [US3] On a failed income/bills/accounts write, surface the error and refetch true state (no stale/optimistic value) in the affected screens/hooks — including the month-boundary case where the UI treated a month as editable but the backend returned `403` (browser-local vs Pi-local current month; the backend is authoritative)
 
 **Checkpoint**: US1–US3 all independently functional; the app degrades gracefully.
 
