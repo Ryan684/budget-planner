@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useMonths } from './hooks/useMonths'
 import { TabBar } from './components/TabBar'
 import type { TabKey } from './components/TabBar'
+import { PinGate } from './components/PinGate'
 import { StateView } from './components/StateView'
 import styles from './App.module.css'
 
@@ -34,6 +35,16 @@ function tabFor(screen: ScreenName): TabKey {
 }
 
 export default function App() {
+  // The gate renders its children only once the session is unlocked, so no
+  // budget data is even fetched while the app is locked (FR-001).
+  return (
+    <PinGate>
+      <BudgetApp />
+    </PinGate>
+  )
+}
+
+function BudgetApp() {
   const { months, editableMonthId, loading, error, refetch: refetchMonths } = useMonths()
   const [activeMonthId, setActiveMonthId] = useState<number | null>(null)
   const [screen, setScreen] = useState<ScreenName>('dashboard')

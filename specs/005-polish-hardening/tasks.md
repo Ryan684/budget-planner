@@ -48,18 +48,18 @@ description: "Task list for Phase 5 — Polish & Hardening"
 
 ### Tests for User Story 1 (TDD — write FIRST, confirm they FAIL) ⚠️
 
-- [ ] T004 [P] [US1] Failing pytest in `backend/tests/test_auth.py`: `POST /api/verify-pin` returns `{ok:true}` for the correct PIN, `{ok:false}` for a wrong PIN, `400` when `app_pin` is blank, `422` for a malformed body (per `contracts/verify-pin.md`)
-- [ ] T005 [P] [US1] Failing pytest in `backend/tests/test_auth.py`: `GET /api/pin-required` returns `{required:true}` when `app_pin` is set and `{required:false}` when blank
-- [ ] T006 [P] [US1] Failing Vitest in `frontend/src/components/__tests__/PinGate.test.tsx`: gate renders when required, a wrong PIN shows an error and stays locked, a correct PIN unlocks; unlock persists via `sessionStorage` and a network/5xx error shows a retryable state without revealing data
+- [X] T004 [P] [US1] Failing pytest in `backend/tests/test_auth.py`: `POST /api/verify-pin` returns `{ok:true}` for the correct PIN, `{ok:false}` for a wrong PIN, `400` when `app_pin` is blank, `422` for a malformed body (per `contracts/verify-pin.md`)
+- [X] T005 [P] [US1] Failing pytest in `backend/tests/test_auth.py`: `GET /api/pin-required` returns `{required:true}` when `app_pin` is set and `{required:false}` when blank
+- [X] T006 [P] [US1] Failing Vitest in `frontend/src/components/__tests__/PinGate.test.tsx`: gate renders when required, a wrong PIN shows an error and stays locked, a correct PIN unlocks; unlock persists via `sessionStorage` and a network/5xx error shows a retryable state without revealing data
 
 ### Implementation for User Story 1
 
-- [ ] T007 [US1] Add Pydantic `PinVerifyRequest`/`PinVerifyResponse`/`PinRequiredResponse` schemas to `backend/schemas.py`
-- [ ] T008 [US1] Implement `backend/routers/auth.py` — `POST /api/verify-pin` (constant-time compare via `hmac.compare_digest` against `settings.app_pin`; `400` when blank) and `GET /api/pin-required`; register the router in `backend/main.py`
-- [ ] T009 [P] [US1] Implement `frontend/src/api/auth.ts` — `verifyPin(pin)` and `pinRequired()` client functions using `apiFetch`
-- [ ] T010 [US1] Implement `frontend/src/hooks/usePinGate.ts` — session unlock state (`sessionStorage`), `pinRequired` check on load, and `verify(pin)` flow (depends on T009)
-- [ ] T011 [US1] Implement `frontend/src/components/PinGate.tsx` + `PinGate.module.css` — mobile-first lock screen (CSS module, no inline styles) (depends on T010)
-- [ ] T012 [US1] Gate the app in `frontend/src/App.tsx` — render `PinGate` when `pin-required` and not unlocked; render the app otherwise; skip entirely when not required (depends on T011)
+- [X] T007 [US1] Add Pydantic `PinVerifyRequest`/`PinVerifyResponse`/`PinRequiredResponse` schemas to `backend/schemas.py`
+- [X] T008 [US1] Implement `backend/routers/auth.py` — `POST /api/verify-pin` (constant-time compare via `hmac.compare_digest` against `settings.app_pin`; `400` when blank) and `GET /api/pin-required`; register the router in `backend/main.py`
+- [X] T009 [P] [US1] Implement `frontend/src/api/auth.ts` — `verifyPin(pin)` and `pinRequired()` client functions using `apiFetch`
+- [X] T010 [US1] Implement `frontend/src/hooks/usePinGate.ts` — session unlock state (`sessionStorage`), `pinRequired` check on load, and `verify(pin)` flow (depends on T009)
+- [X] T011 [US1] Implement `frontend/src/components/PinGate.tsx` + `PinGate.module.css` — mobile-first lock screen (CSS module, no inline styles) (depends on T010)
+- [X] T012 [US1] Gate the app in `frontend/src/App.tsx` — render `PinGate` when `pin-required` and not unlocked; render the app otherwise; skip entirely when not required (depends on T011)
 
 **Checkpoint**: US1 is fully functional and independently testable.
 
