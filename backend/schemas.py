@@ -202,6 +202,33 @@ class AmendmentRead(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# PIN gate (Phase 5)
+# ---------------------------------------------------------------------------
+class PinVerifyRequest(BaseModel):
+    pin: str
+
+
+class PinVerifyResponse(BaseModel):
+    """``ok: False`` is a wrong PIN, not an HTTP error — the frontend needs to
+    tell a rejected attempt apart from an unreachable backend."""
+
+    ok: bool
+
+
+class PinRequiredResponse(BaseModel):
+    required: bool
+
+
+# ---------------------------------------------------------------------------
+# Backup status (Phase 5)
+# ---------------------------------------------------------------------------
+class BackupStatusResponse(BaseModel):
+    status: Literal["success", "failed", "unknown"]
+    last_run_at: datetime | None
+    stale: bool
+
+
+# ---------------------------------------------------------------------------
 # Claude integration (Phase 3)
 # ---------------------------------------------------------------------------
 class ClaudeMessage(BaseModel):

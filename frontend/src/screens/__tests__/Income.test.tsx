@@ -159,3 +159,45 @@ describe('Income validation', () => {
     expect(submitBtns[submitBtns.length - 1]).toBeDisabled()
   })
 })
+
+describe('Income write failures', () => {
+  async function openAddSheet() {
+    const user = userEvent.setup()
+    renderIncome()
+    await waitFor(() => screen.getAllByRole('button', { name: /add income/i }))
+    const addBtns = screen.getAllByRole('button', { name: /add income/i })
+    await user.click(addBtns[addBtns.length - 1])
+    await user.type(screen.getByPlaceholderText(/freelance/i), 'Side project')
+    const amtInput = screen.getByRole('spinbutton')
+    await user.clear(amtInput)
+    await user.type(amtInput, '200')
+    return user
+  }
+
+  it('surfaces the error and refetches true state when a create fails', async () => {
+    vi.mocked(createIncome).mockRejectedValue(new Error('Failed to save'))
+    const user = await openAddSheet()
+
+    const submitBtns = screen.getAllByRole('button', { name: 'Add income' })
+    await user.click(submitBtns[submitBtns.length - 1])
+
+    await waitFor(() => expect(screen.getByText('Failed to save')).toBeTruthy())
+    // No optimistic value is left behind — the screen is re-synced with the API.
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+
+  it('shows the read-only message when the backend rejects a stale editable month', async () => {
+    // The browser thought this month was editable but the Pi disagrees at the
+    // month boundary — the backend is authoritative.
+    vi.mocked(createIncome).mockRejectedValue(
+      new Error('This month is read-only — only the current month can be edited'),
+    )
+    const user = await openAddSheet()
+
+    const submitBtns = screen.getAllByRole('button', { name: 'Add income' })
+    await user.click(submitBtns[submitBtns.length - 1])
+
+    await waitFor(() => expect(screen.getByText(/read-only/i)).toBeTruthy())
+    expect(mockRefetch).toHaveBeenCalled()
+  })
+})

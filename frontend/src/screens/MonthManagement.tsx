@@ -18,7 +18,7 @@ import styles from './MonthManagement.module.css'
 interface MonthManagementScreenProps {
   screen: ScreenName
   months: MonthRead[]
-  editableMonthId: number
+  editableMonthId: number | null
   activeMonthId: number
   onSwitchMonth: (id: number) => void
   onBack: () => void
@@ -53,7 +53,7 @@ function MonthsList({
   onBack,
 }: {
   months: MonthRead[]
-  editableMonthId: number
+  editableMonthId: number | null
   activeMonthId: number
   onSwitch: (id: number) => void
   onCreateMonth: () => void

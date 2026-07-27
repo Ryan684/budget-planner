@@ -7,6 +7,8 @@ import { Card } from '../components/Card'
 import { SectionLabel } from '../components/SectionLabel'
 import { Row } from '../components/Row'
 import { Banner } from '../components/Banner'
+import { BackupBanner } from '../components/BackupBanner'
+import { Button } from '../components/Button'
 import { StatusPill } from '../components/StatusPill'
 import { SurplusBar } from '../components/SurplusBar'
 import { StateView } from '../components/StateView'
@@ -16,7 +18,8 @@ import styles from './Dashboard.module.css'
 
 interface DashboardScreenProps {
   activeMonthId: number
-  editableMonthId: number
+  /** null when the current calendar month has not been created yet. */
+  editableMonthId: number | null
   readOnly: boolean
   go: (screen: ScreenName) => void
 }
@@ -39,7 +42,7 @@ function dueLabel(d: number | null): string | undefined {
 
 export function DashboardScreen({
   activeMonthId,
-  editableMonthId: _editableMonthId,
+  editableMonthId,
   readOnly,
   go,
 }: DashboardScreenProps) {
@@ -132,10 +135,25 @@ export function DashboardScreen({
 
       {/* ── Scroll area ── */}
       <div className={styles.scroll}>
+        <BackupBanner />
+
         {readOnly && (
           <Banner tone="amber" icon="lock">
             Viewing {displayMonth} — read-only
           </Banner>
+        )}
+
+        {/* No month matches the calendar month, so nothing is editable until
+            it is created — offer that rather than unlocking the latest month. */}
+        {editableMonthId === null && (
+          <div className={styles.createMonthPrompt}>
+            <span className={styles.createMonthText}>
+              This month hasn't been set up yet.
+            </span>
+            <Button variant="secondary" icon="plus" onClick={() => go('create-month')}>
+              Create this month
+            </Button>
+          </div>
         )}
 
         <div className={styles.content}>

@@ -182,3 +182,19 @@ export interface ClaudeUndoResponse {
   reverted: number[]
   summary: BudgetSummary | null
 }
+
+// ── PIN gate (Phase 5) ──
+export interface PinRequiredResponse {
+  required: boolean
+}
+export interface PinVerifyResponse {
+  ok: boolean
+}
+
+// ── Backup status (Phase 5) ──
+export type BackupStatusValue = 'success' | 'failed' | 'unknown'
+export interface BackupStatus {
+  status: BackupStatusValue
+  last_run_at: string | null
+  stale: boolean
+}

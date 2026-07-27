@@ -11,8 +11,8 @@ and testable.
 from datetime import date
 
 import budget
+import current_month
 import models
-from routers.deps import latest_month_id
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -119,7 +119,7 @@ def build_budget_context(session: Session) -> dict:
     ]
 
     return {
-        "current_month_id": latest_month_id(session),
+        "current_month_id": current_month.current_month_id(session),
         "months": month_payload,
         "accounts": account_payload,
         "balance_snapshots": snapshot_payload,

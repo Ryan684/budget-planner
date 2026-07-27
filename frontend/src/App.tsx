@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useMonths } from './hooks/useMonths'
 import { TabBar } from './components/TabBar'
 import type { TabKey } from './components/TabBar'
+import { PinGate } from './components/PinGate'
 import { StateView } from './components/StateView'
 import styles from './App.module.css'
 
@@ -34,16 +35,30 @@ function tabFor(screen: ScreenName): TabKey {
 }
 
 export default function App() {
-  const { months, editableMonthId, loading, error, refetch: refetchMonths } = useMonths()
+  // The gate renders its children only once the session is unlocked, so no
+  // budget data is even fetched while the app is locked (FR-001).
+  return (
+    <PinGate>
+      <BudgetApp />
+    </PinGate>
+  )
+}
+
+function BudgetApp() {
+  const { months, editableMonthId, latestMonthId, loading, error, refetch: refetchMonths } =
+    useMonths()
   const [activeMonthId, setActiveMonthId] = useState<number | null>(null)
   const [screen, setScreen] = useState<ScreenName>('dashboard')
 
-  // Sync activeMonthId to editableMonthId on first load
+  // Open on the editable (calendar) month; if it has not been created yet, fall
+  // back to viewing the newest month read-only while the dashboard offers to
+  // create this one.
+  const defaultMonthId = editableMonthId ?? latestMonthId
   useEffect(() => {
-    if (editableMonthId !== null && activeMonthId === null) {
-      setActiveMonthId(editableMonthId)
+    if (defaultMonthId !== null && activeMonthId === null) {
+      setActiveMonthId(defaultMonthId)
     }
-  }, [editableMonthId, activeMonthId])
+  }, [defaultMonthId, activeMonthId])
 
   if (loading) return <StateView loading />
   if (error) return <StateView error={error} onRetry={refetchMonths} />
@@ -74,7 +89,7 @@ export default function App() {
     )
   }
 
-  const resolvedActiveMonthId = activeMonthId ?? editableMonthId!
+  const resolvedActiveMonthId = activeMonthId ?? defaultMonthId!
   const readOnly = resolvedActiveMonthId !== editableMonthId
 
   const go = (s: ScreenName) => setScreen(s)
@@ -91,7 +106,7 @@ export default function App() {
         {screen === 'dashboard' && (
           <DashboardScreen
             activeMonthId={resolvedActiveMonthId}
-            editableMonthId={editableMonthId!}
+            editableMonthId={editableMonthId}
             readOnly={readOnly}
             go={go}
           />
@@ -104,7 +119,7 @@ export default function App() {
         )}
         {screen === 'accounts' && (
           <AccountsScreen
-            editableMonthId={editableMonthId!}
+            editableMonthId={editableMonthId}
           />
         )}
         {screen === 'claude' && <ClaudeScreen />}
@@ -125,7 +140,7 @@ export default function App() {
           <MonthManagementScreen
             screen={screen}
             months={months}
-            editableMonthId={editableMonthId!}
+            editableMonthId={editableMonthId}
             activeMonthId={resolvedActiveMonthId}
             onSwitchMonth={switchMonth}
             onBack={() => go('dashboard')}

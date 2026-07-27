@@ -57,6 +57,9 @@ export function IncomeScreen({ activeMonthId, readOnly, onBack }: IncomeScreenPr
       refetch()
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save')
+      // The write did not land: re-sync with the API so no optimistic or
+      // stale value is left on screen (FR-013).
+      refetch()
     }
   }
 
@@ -69,6 +72,9 @@ export function IncomeScreen({ activeMonthId, readOnly, onBack }: IncomeScreenPr
       refetch()
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : 'Failed to delete')
+      // The write did not land: re-sync with the API so no optimistic or
+      // stale value is left on screen (FR-013).
+      refetch()
     }
   }
 

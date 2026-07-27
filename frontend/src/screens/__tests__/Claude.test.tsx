@@ -134,3 +134,38 @@ describe('Claude undo', () => {
     })
   })
 })
+
+describe('Claude API failure', () => {
+  it('shows a friendly error and preserves the conversation and typed message', async () => {
+    vi.mocked(postClaudeMessage)
+      .mockResolvedValueOnce({ reply: 'Your surplus is £2,015.00.', writes: [], summary })
+      .mockRejectedValueOnce(new Error('The assistant is unavailable right now. Please try again.'))
+    const user = await ask("what's our surplus?")
+    await waitFor(() => expect(screen.getByText('Your surplus is £2,015.00.')).toBeTruthy())
+
+    await user.type(screen.getByLabelText('Message Claude'), 'add a £45 water bill')
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() =>
+      expect(screen.getByText(/assistant is unavailable/i)).toBeTruthy(),
+    )
+    // The earlier turn survives...
+    expect(screen.getByText('Your surplus is £2,015.00.')).toBeTruthy()
+    expect(screen.getByText("what's our surplus?")).toBeTruthy()
+    // ...and the failed message is still in the box, ready to resend.
+    expect(screen.getByLabelText('Message Claude')).toHaveValue('add a £45 water bill')
+  })
+
+  it('lets the user resend after a failure without retyping', async () => {
+    vi.mocked(postClaudeMessage)
+      .mockRejectedValueOnce(new Error('The assistant is unavailable right now. Please try again.'))
+      .mockResolvedValueOnce({ reply: 'Added the water bill.', writes: [], summary })
+    const user = await ask('add a £45 water bill')
+    await waitFor(() => expect(screen.getByText(/assistant is unavailable/i)).toBeTruthy())
+
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    await waitFor(() => expect(screen.getByText('Added the water bill.')).toBeTruthy())
+    expect(screen.getByLabelText('Message Claude')).toHaveValue('')
+  })
+})

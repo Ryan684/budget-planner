@@ -1,3 +1,93 @@
+# Surviving Mutants — Phase 5 (Polish & Hardening)
+
+Mutation testing run: 2026-07-27
+Tool: StrykerJS 9.x + @stryker-mutator/vitest-runner
+Scope: **widened** from `src/lib/**/*.ts` to also cover the new Phase 5 logic —
+`src/api/client.ts`, `src/hooks/usePinGate.ts`, `src/hooks/useMonths.ts`,
+`src/components/BackupBanner.tsx`.
+Overall score: **85.63%** (286 killed / 334 total; 45 survived, 3 no coverage).
+
+| File | Score | Survived |
+|---|---|---|
+| `src/api/client.ts` | 95.45% | 2 |
+| `src/components/BackupBanner.tsx` | 88.89% | 4 |
+| `src/hooks/useMonths.ts` | 76.60% | 10 |
+| `src/hooks/usePinGate.ts` | 71.43% | 14 |
+| `src/lib/**` | 90.07% | 15 (unchanged from Phase 3) |
+
+The first run scored 70.96%. Mutants that represented real behaviour were killed by new
+tests rather than accepted:
+
+- **A latent bug in `apiFetch`** — `...init` was spread *after* `headers`, so a caller's
+  `headers` silently replaced the merged content type, and the new abort `signal` would
+  have been dropped the same way. `init` is now spread first. Found by the surviving
+  header mutants.
+- **`BackupBanner`'s negative assertions were vacuous** — they queried before the status
+  fetch had settled, so they passed for both the original and the mutant. The helper now
+  waits for the fetch and flushes React before asserting no banner, which kills the
+  `&&` → `||`, `if (true)`, and `true && stale` mutants (verified by applying the `||`
+  mutation: 2 tests fail).
+- Timestamp formatting, the `iso === null` fallback, `204`/`404`/`409`/`422` response
+  handling, `useMonths` loading and refetch, and the PIN gate's in-flight states all
+  gained tests.
+
+## Acceptable surviving mutants
+
+### React lifecycle guards — `usePinGate.ts`, `useMonths.ts`, `BackupBanner.tsx` (10)
+
+| Mutation | Why acceptable |
+|---|---|
+| `if (!cancelled) { … }` → `if (true) { … }` (×4) | The `cancelled` flag suppresses a state update from a request that resolves after unmount. Killing it needs a test that unmounts mid-flight and asserts on a React warning, which asserts on the framework rather than on app behaviour. |
+| `return () => { cancelled = true }` → `return () => {}` (×3) | Same guard, from the cleanup side. |
+| `cancelled = true` → `cancelled = false` (×3) | Same guard. |
+
+### Inert `useCallback` / `useEffect` dependency arrays (4)
+
+`[]` → `["Stryker was here"]` on `refetch`, `retry`, `verify`, and the banner's effect. A
+constant literal dependency never changes between renders, so the hook behaves identically.
+
+### Version-counter arithmetic (4)
+
+`setVersion(v => v + 1)` → `v - 1` and `→ () => undefined` on `refetch`/`retry`. The
+counter is only an effect trigger — any *different* value re-runs the effect, so
+decrementing works exactly as well. (`() => undefined` on `useMonths.refetch` is killed;
+its `usePinGate` twin is not, because the gate check re-runs on mount either way.)
+
+### `useMonths.ts` — newest-month comparison (1)
+
+`m.month > max.month` → `m.month >= max.month`. Months are unique by database constraint,
+so the two comparisons can never disagree.
+
+### `useMonths.ts` / `usePinGate.ts` — initial-state literals (3)
+
+`useState(true)` → `false` on `loading`, `useState<MonthRead[]>([])` → non-empty, and
+`isUnlocked() ? 'unlocked' : 'checking'` → `''`. The first render is immediately replaced
+by the effect's result before the assertions land; a status value outside the union renders
+the same lock screen as `'locked'`.
+
+### `usePinGate.ts` — status string literals (4)
+
+`setStatus('locked')` → `''`, `setStatus('checking')` → `''`, `res.required ? '' : 'unlocked'`.
+`PinGate` renders the lock screen for anything that is neither `'unlocked'` nor
+`'checking'`, so an empty status is indistinguishable from `'locked'`.
+
+### `usePinGate.ts` — `UNLOCK_KEY = 'budget-planner:unlocked'` → `""` (1)
+
+The sessionStorage key name. Tests clear the whole store, so any key round-trips
+identically. The namespaced name matters only against other apps on the same origin.
+
+### `client.ts` — detail-shape narrowing (2)
+
+`if (Array.isArray(detail))` → `if (true)` and a type-annotation-only mutation on
+`?.detail ?? body`. A non-string, non-array detail indexes to `undefined` and falls through
+to the same generic message either way.
+
+### `src/lib/**` (15)
+
+Unchanged from Phase 3 — see the sections below.
+
+---
+
 # Surviving Mutants — Phase 3 (Claude Integration)
 
 Mutation testing run: 2026-06-21  

@@ -526,3 +526,161 @@ Feature: Backup
     Then it records a timestamped failure with a reason in the local backup log and exits non-zero
     And the previous good backup in the repository is unchanged
     And the next scheduled run can succeed once the failure is resolved
+
+
+Feature: Polish & Hardening
+  # Phase 5 — clarified 2026-07-26: an optional backend-verified PIN gate, income
+  # and bills editable only in the current *calendar* month (notes and accounts
+  # exempt), graceful retryable error states, a nightly-backup health banner, and
+  # a README complete enough to bring up a fresh Pi.
+
+  # --- User Story 1: optional PIN protects the app ---
+
+  Scenario: A configured PIN gates the app on load
+    Given a PIN is configured on the backend
+    When I load the app
+    Then a PIN entry screen is shown
+    And no dashboard, income, bills, account, or Claude data is visible behind it
+
+  Scenario: The correct PIN unlocks the app
+    Given the PIN entry screen is showing
+    When I enter the correct PIN
+    Then the app unlocks and shows the dashboard
+    And it stays unlocked while I navigate between screens
+
+  Scenario: An incorrect PIN is rejected
+    Given the PIN entry screen is showing
+    When I enter an incorrect PIN
+    Then an error is shown and the app stays locked
+    And no financial data is revealed
+
+  Scenario: No configured PIN means no gate
+    Given no PIN is configured on the backend
+    When I load the app
+    Then the dashboard is shown immediately with no PIN step
+
+  Scenario: Unlock lasts only for the browser session
+    Given I have unlocked the app with the correct PIN
+    When I reload the page in the same browser session
+    Then the app is still unlocked
+    But when the browser session ends and I reopen the app
+    Then the PIN is required again
+
+  Scenario: The configured PIN never reaches the browser
+    Given a PIN is configured on the backend
+    When the frontend verifies an entered PIN
+    Then it posts the entry to the backend for checking
+    And the configured PIN value appears nowhere in the delivered frontend bundle
+
+  # --- User Story 2: previous months are read-only, reconciled to the calendar month ---
+
+  Scenario: A previous month offers no income or bill editing
+    Given a previous month is being viewed
+    When its Income and Bills screens are shown
+    Then no add, edit, or delete controls for that month's income or bills are available
+
+  Scenario: The backend rejects a write to a previous month
+    Given a previous month exists
+    When a write to that month's income or bills is nonetheless attempted
+    Then the backend rejects it with a clear "this month is read-only" error
+    And no data changes
+
+  Scenario: A future-dated month is read-only until its calendar month arrives
+    Given a month dated after the current calendar month exists
+    When its Income and Bills screens are shown
+    Then no add, edit, or delete controls for its income or bills are available
+    And a write to it is rejected by the backend
+
+  Scenario: The current calendar month is fully editable
+    Given the month matching the current calendar month is being viewed
+    When its Income and Bills screens are shown
+    Then full add, edit, and delete editing is available
+
+  Scenario: Notes stay editable on any month
+    Given a previous month is being viewed
+    When I edit that month's free-text notes
+    Then the change is accepted
+
+  Scenario: Account balances stay editable from any month
+    Given any month, current or previous, is being viewed
+    When I use the Accounts screen
+    Then account balances can still be added, edited, and deleted
+
+  Scenario: Carry-forward is not blocked by the read-only rule
+    Given a previous month with recurring items exists
+    When I create the current calendar month by carrying items forward
+    Then the new month is created with those items
+    And the previous month is unchanged
+
+  Scenario: Claude writes to the current calendar month
+    Given the month matching the current calendar month exists
+    When Claude makes a write
+    Then it lands in that month
+
+  Scenario: Claude has no write target when the calendar month is missing
+    Given no month matches the current calendar month
+    When Claude attempts a write
+    Then it reports that there is no current month to write to
+
+  Scenario: The dashboard prompts to create the current calendar month
+    Given no month matches the current calendar month
+    When the dashboard is loaded
+    Then it offers to create this month rather than treating the latest month as editable
+
+  # --- User Story 3: graceful error states and backup health ---
+
+  Scenario: An unreachable backend shows a retryable error
+    Given the backend is unreachable
+    When any data screen is opened
+    Then a clear error state with a retry option is shown within a few seconds
+    And never an indefinite spinner or a blank screen
+
+  Scenario: A Claude API failure preserves the conversation
+    Given the Anthropic API is unavailable
+    When I send a Claude message
+    Then the Claude screen shows a friendly error
+    And the conversation and my typed message are preserved for a retry
+
+  Scenario: A failed write shows the true persisted state
+    Given a write operation fails
+    When the failure returns
+    Then an error is shown
+    And the screen reflects the true persisted state with no stale optimistic values
+
+  Scenario: A failed nightly backup raises a dashboard banner
+    Given the most recent nightly backup FAILED
+    When the dashboard is loaded
+    Then a warning banner is shown
+
+  Scenario: A stale nightly backup raises a dashboard banner
+    Given no successful backup has occurred within the staleness threshold
+    When the dashboard is loaded
+    Then a warning banner is shown
+
+  Scenario: A healthy nightly backup raises no banner
+    Given the most recent nightly backup succeeded within the staleness threshold
+    When the dashboard is loaded
+    Then no backup warning banner is shown
+
+  Scenario: A missing backup log raises no false alarm
+    Given no backup log is available, as in development
+    When the dashboard is loaded
+    Then the backup status is unknown
+    And no backup warning banner is shown
+
+  # --- User Story 4: fresh-Pi setup from the README ---
+
+  Scenario: A fresh Pi is brought up from the README alone
+    Given a bare Raspberry Pi and the README
+    When the setup guide is followed end to end
+    Then the backend, frontend, database on the USB SSD, and backup timer are all running
+    And no step required knowledge outside the README
+
+  Scenario: The end-to-end checklist confirms the deployment
+    Given the completed setup
+    When the end-to-end validation checklist is run
+    Then each screen loads, a Claude query works, and a manually triggered backup produces a commit in the backup repository
+
+  Scenario: The app is reachable remotely over Tailscale
+    Given the README remote-access section has been followed
+    Then the app is reachable from a phone over Tailscale

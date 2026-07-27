@@ -17,7 +17,9 @@ dependencies = [
 dev = [
     "pytest",
     "httpx",
-    "mutmut",
+    # Pinned: 3.6.0 cannot import unmutated modules from its copied source tree,
+    # and MUTANTS.md records results from this version.
+    "mutmut==3.5.0",
     "ruff",
 ]
 
@@ -38,12 +40,18 @@ py-modules = [
     "claude_context",
     "claude_tools",
     "claude_client",
+    "current_month",
+    "backup_status",
 ]
 packages = ["routers"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["."]
+# ".." lets the suite run inside mutmut's copied "mutants/" tree, which holds only
+# the mutated modules: "." resolves those first, ".." supplies the rest (models,
+# database, config, schemas). Outside mutants/ it resolves to the repo root, which
+# has no importable modules, so normal runs are unaffected.
+pythonpath = [".", ".."]
 
 [tool.mutmut]
 # mutmut 3.x expects a list of paths. Scope mutation to the core logic
@@ -57,5 +65,10 @@ paths_to_mutate = [
     "claude_tools.py",
     "claude_client.py",
     "backup.py",
+    "current_month.py",
+    "backup_status.py",
+    "routers/auth.py",
+    "routers/system.py",
+    "routers/deps.py",
 ]
 tests_dir = ["tests/"]

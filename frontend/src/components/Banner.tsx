@@ -12,7 +12,7 @@ interface BannerProps {
 
 export function Banner({ tone = 'amber', icon = 'lock', children }: BannerProps) {
   return (
-    <div className={`${styles.banner} ${styles[tone]}`}>
+    <div className={`${styles.banner} ${styles[tone]}`} role="status">
       <Icon name={icon} size={16} />
       <span>{children}</span>
     </div>

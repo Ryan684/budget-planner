@@ -1,9 +1,9 @@
 """API tests for bills endpoints."""
 
-from tests.factories import make_bill
+from tests.factories import CURRENT_MONTH, make_bill
 
 
-def _create_month(client, month="2026-06"):
+def _create_month(client, month=CURRENT_MONTH):
     return client.post("/api/months", json={"month": month}).json()
 
 

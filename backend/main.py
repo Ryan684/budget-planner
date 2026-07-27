@@ -4,7 +4,7 @@ from contextlib import asynccontextmanager
 
 from database import init_db
 from fastapi import FastAPI
-from routers import accounts, amendments, bills, claude, income, months
+from routers import accounts, amendments, auth, bills, claude, income, months, system
 
 
 @asynccontextmanager
@@ -22,6 +22,8 @@ app.include_router(bills.router)
 app.include_router(accounts.router)
 app.include_router(amendments.router)
 app.include_router(claude.router)
+app.include_router(auth.router)
+app.include_router(system.router)
 
 
 @app.get("/api/health")

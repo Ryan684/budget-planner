@@ -1,8 +1,13 @@
 """Small helpers to construct ORM rows directly in tests."""
 
-from datetime import date
+from datetime import date, timedelta
 
 import models
+
+# Phase 5: "the current month" is the real calendar month, so tests that need an
+# editable month must use today's key rather than a fixed literal.
+CURRENT_MONTH = date.today().strftime("%Y-%m")
+PREVIOUS_MONTH = (date.today().replace(day=1) - timedelta(days=1)).strftime("%Y-%m")
 
 
 def make_month(session, month="2026-06", notes=None):

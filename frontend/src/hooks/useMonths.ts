@@ -1,10 +1,14 @@
 import { useState, useEffect, useCallback } from 'react'
 import { listMonths } from '../api/months'
+import { currentMonthKey } from '../lib/dates'
 import type { MonthRead } from '../api/types'
 
 export interface UseMonthsResult {
   months: MonthRead[]
+  /** The month matching the current calendar month — null if it does not exist yet. */
   editableMonthId: number | null
+  /** The newest month on file, for viewing when there is no editable month. */
+  latestMonthId: number | null
   loading: boolean
   error: string | null
   refetch: () => void
@@ -39,7 +43,12 @@ export function useMonths(): UseMonthsResult {
 
   const refetch = useCallback(() => setVersion(v => v + 1), [])
 
-  const editableMonthId =
+  // The editable month is the calendar month, not the latest one: a future-dated
+  // month must stay read-only until its month arrives, and a missing current
+  // month means nothing is editable until it is created.
+  const editableMonthId = months.find(m => m.month === currentMonthKey())?.id ?? null
+
+  const latestMonthId =
     months.length > 0
       ? months.reduce((max, m) => (m.month > max.month ? m : max)).id
       : null
@@ -49,5 +58,5 @@ export function useMonths(): UseMonthsResult {
     [editableMonthId],
   )
 
-  return { months, editableMonthId, loading, error, refetch, isReadOnly }
+  return { months, editableMonthId, latestMonthId, loading, error, refetch, isReadOnly }
 }

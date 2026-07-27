@@ -191,3 +191,29 @@ describe('Dashboard negative surplus', () => {
     })
   })
 })
+
+describe('Dashboard when the current calendar month is missing', () => {
+  it('prompts to create this month instead of treating the latest month as editable', async () => {
+    const mockGo = vi.fn()
+    render(
+      <DashboardScreen
+        activeMonthId={1}
+        editableMonthId={null}
+        readOnly={true}
+        go={mockGo}
+      />
+    )
+
+    const prompt = await screen.findByRole('button', { name: /create this month/i })
+    await userEvent.setup().click(prompt)
+
+    expect(mockGo).toHaveBeenCalledWith('create-month')
+  })
+
+  it('shows no create prompt while the current month exists', async () => {
+    renderDashboard()
+    await waitFor(() => screen.getByText('Income'))
+
+    expect(screen.queryByRole('button', { name: /create this month/i })).toBeNull()
+  })
+})

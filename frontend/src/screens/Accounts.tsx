@@ -14,7 +14,8 @@ import { gbp } from '../lib/format'
 import styles from './Accounts.module.css'
 
 interface AccountsScreenProps {
-  editableMonthId: number
+  /** null when the current calendar month has not been created yet. */
+  editableMonthId: number | null
 }
 
 export function AccountsScreen({ editableMonthId }: AccountsScreenProps) {
@@ -52,6 +53,9 @@ export function AccountsScreen({ editableMonthId }: AccountsScreenProps) {
       refetch()
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : 'Failed to save')
+      // The write did not land: re-sync with the API so no optimistic or
+      // stale value is left on screen (FR-013).
+      refetch()
     }
   }
 
@@ -63,6 +67,9 @@ export function AccountsScreen({ editableMonthId }: AccountsScreenProps) {
       refetch()
     } catch (e: unknown) {
       setSaveError(e instanceof Error ? e.message : 'Failed to delete')
+      // The write did not land: re-sync with the API so no optimistic or
+      // stale value is left on screen (FR-013).
+      refetch()
     }
   }
 

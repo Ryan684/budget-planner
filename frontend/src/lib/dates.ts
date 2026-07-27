@@ -21,3 +21,12 @@ export function fmtAsOf(isoDate: string): string {
   if (days === 1) return 'Updated yesterday'
   return `Updated ${days} days ago`
 }
+
+/**
+ * The `YYYY-MM` key of the current calendar month in the browser's local time.
+ * Mirrors the backend's `current_month.month_key` so the UI and the API agree on
+ * which month is editable (the backend stays authoritative on a disagreement).
+ */
+export function currentMonthKey(now: Date = new Date()): string {
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+}
