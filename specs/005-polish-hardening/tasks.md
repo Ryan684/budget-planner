@@ -128,8 +128,8 @@ description: "Task list for Phase 5 — Polish & Hardening"
 
 ### Implementation for User Story 4
 
-- [ ] T036 [US4] Complete the `README.md` fresh-Pi setup guide: USB SSD mount, Python/Node/SQLite prerequisites, `budget-backend`/`budget-frontend` systemd services, `.env.production` (incl. `APP_PIN`, `BACKUP_STALE_HOURS`, `BACKUP_LOG_FILE`/`BACKUP_REPO_DIR`/`BACKUP_LOCK_FILE`), backup systemd timer + SSH key, and Tailscale remote-access setup (FR-017)
-- [ ] T037 [US4] Add the fresh-Pi end-to-end validation checklist to `README.md` (referencing `specs/005-polish-hardening/quickstart.md` Part B) so the operator can confirm every screen, PIN, read-only, Claude, backup run + alert, remote access, and recovery (FR-018)
+- [X] T036 [US4] Complete the `README.md` fresh-Pi setup guide: USB SSD mount, Python/Node/SQLite prerequisites, `budget-backend`/`budget-frontend` systemd services, `.env.production` (incl. `APP_PIN`, `BACKUP_STALE_HOURS`, `BACKUP_LOG_FILE`/`BACKUP_REPO_DIR`/`BACKUP_LOCK_FILE`), backup systemd timer + SSH key, and Tailscale remote-access setup (FR-017)
+- [X] T037 [US4] Add the fresh-Pi end-to-end validation checklist to `README.md` (referencing `specs/005-polish-hardening/quickstart.md` Part B) so the operator can confirm every screen, PIN, read-only, Claude, backup run + alert, remote access, and recovery (FR-018)
 
 **Checkpoint**: Documentation complete; the fresh-Pi E2E is executable by the operator.
 
