@@ -14,7 +14,8 @@ import { gbp } from '../lib/format'
 import styles from './Accounts.module.css'
 
 interface AccountsScreenProps {
-  editableMonthId: number
+  /** null when the current calendar month has not been created yet. */
+  editableMonthId: number | null
 }
 
 export function AccountsScreen({ editableMonthId }: AccountsScreenProps) {

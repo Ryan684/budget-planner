@@ -1,9 +1,9 @@
 """API tests for income endpoints."""
 
-from tests.factories import make_income
+from tests.factories import CURRENT_MONTH, make_income
 
 
-def _create_month(client, month="2026-06"):
+def _create_month(client, month=CURRENT_MONTH):
     return client.post("/api/months", json={"month": month}).json()
 
 

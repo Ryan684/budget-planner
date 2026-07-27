@@ -1,10 +1,12 @@
 """API tests for the amendments log read endpoint."""
 
-from tests.factories import make_bill, make_month
+import crud
+
+from tests.factories import CURRENT_MONTH, PREVIOUS_MONTH, make_bill, make_month
 
 
 def test_amendments_listed_per_month(client, db_session):
-    month = make_month(db_session, month="2026-06")
+    month = make_month(db_session, month=CURRENT_MONTH)
     bill = make_bill(db_session, month.id, label="Electricity", amount=85.0)
     client.patch(f"/api/bills/{bill.id}", json={"amount": 97.0})
 
@@ -21,7 +23,7 @@ def test_amendments_listed_per_month(client, db_session):
 
 
 def test_amendments_newest_first(client, db_session):
-    month = make_month(db_session, month="2026-06")
+    month = make_month(db_session, month=CURRENT_MONTH)
     bill = make_bill(db_session, month.id, amount=85.0)
     client.patch(f"/api/bills/{bill.id}", json={"amount": 90.0})
     client.patch(f"/api/bills/{bill.id}", json={"amount": 95.0})
@@ -33,11 +35,13 @@ def test_amendments_newest_first(client, db_session):
 
 
 def test_amendments_scoped_to_month(client, db_session):
-    m1 = make_month(db_session, month="2026-05")
-    m2 = make_month(db_session, month="2026-06")
+    m1 = make_month(db_session, month=PREVIOUS_MONTH)
+    m2 = make_month(db_session, month=CURRENT_MONTH)
     b1 = make_bill(db_session, m1.id, amount=10.0)
     b2 = make_bill(db_session, m2.id, amount=20.0)
-    client.patch(f"/api/bills/{b1.id}", json={"amount": 11.0})
+    # The previous month is read-only over HTTP (Phase 5), so its amendment is
+    # seeded directly — the point here is that the listing filters by month.
+    crud.update_entity(db_session, b1, {"amount": 11.0}, entity_type="bill", month_id=m1.id)
     client.patch(f"/api/bills/{b2.id}", json={"amount": 22.0})
 
     assert len(client.get(f"/api/months/{m1.id}/amendments").json()) == 1

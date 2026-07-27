@@ -45,16 +45,20 @@ export default function App() {
 }
 
 function BudgetApp() {
-  const { months, editableMonthId, loading, error, refetch: refetchMonths } = useMonths()
+  const { months, editableMonthId, latestMonthId, loading, error, refetch: refetchMonths } =
+    useMonths()
   const [activeMonthId, setActiveMonthId] = useState<number | null>(null)
   const [screen, setScreen] = useState<ScreenName>('dashboard')
 
-  // Sync activeMonthId to editableMonthId on first load
+  // Open on the editable (calendar) month; if it has not been created yet, fall
+  // back to viewing the newest month read-only while the dashboard offers to
+  // create this one.
+  const defaultMonthId = editableMonthId ?? latestMonthId
   useEffect(() => {
-    if (editableMonthId !== null && activeMonthId === null) {
-      setActiveMonthId(editableMonthId)
+    if (defaultMonthId !== null && activeMonthId === null) {
+      setActiveMonthId(defaultMonthId)
     }
-  }, [editableMonthId, activeMonthId])
+  }, [defaultMonthId, activeMonthId])
 
   if (loading) return <StateView loading />
   if (error) return <StateView error={error} onRetry={refetchMonths} />
@@ -85,7 +89,7 @@ function BudgetApp() {
     )
   }
 
-  const resolvedActiveMonthId = activeMonthId ?? editableMonthId!
+  const resolvedActiveMonthId = activeMonthId ?? defaultMonthId!
   const readOnly = resolvedActiveMonthId !== editableMonthId
 
   const go = (s: ScreenName) => setScreen(s)
@@ -102,7 +106,7 @@ function BudgetApp() {
         {screen === 'dashboard' && (
           <DashboardScreen
             activeMonthId={resolvedActiveMonthId}
-            editableMonthId={editableMonthId!}
+            editableMonthId={editableMonthId}
             readOnly={readOnly}
             go={go}
           />
@@ -115,7 +119,7 @@ function BudgetApp() {
         )}
         {screen === 'accounts' && (
           <AccountsScreen
-            editableMonthId={editableMonthId!}
+            editableMonthId={editableMonthId}
           />
         )}
         {screen === 'claude' && <ClaudeScreen />}
@@ -136,7 +140,7 @@ function BudgetApp() {
           <MonthManagementScreen
             screen={screen}
             months={months}
-            editableMonthId={editableMonthId!}
+            editableMonthId={editableMonthId}
             activeMonthId={resolvedActiveMonthId}
             onSwitchMonth={switchMonth}
             onBack={() => go('dashboard')}

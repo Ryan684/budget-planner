@@ -11,14 +11,13 @@ from datetime import date
 import budget
 import claude_client
 import crud
+import current_month
 import models
 import schemas
 from database import get_db
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
-
-from routers.deps import latest_month_id
 
 router = APIRouter(prefix="/api/claude", tags=["claude"])
 
@@ -36,7 +35,7 @@ class _UndoError(Exception):
 
 
 def _current_summary(db: Session) -> schemas.BudgetSummary | None:
-    month_id = latest_month_id(db)
+    month_id = current_month.current_month_id(db)
     if month_id is None:
         return None
     month = db.get(models.BudgetMonth, month_id)

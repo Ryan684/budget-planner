@@ -73,21 +73,21 @@ description: "Task list for Phase 5 — Polish & Hardening"
 
 ### Tests for User Story 2 (TDD — write FIRST, confirm they FAIL) ⚠️
 
-- [ ] T013 [P] [US2] Failing pytest in `backend/tests/test_current_month.py`: the current-month helper resolves the `BudgetMonth` whose `month` equals the injected local `YYYY-MM`, and returns `None` when no such month exists (inject/patch the reference date so the test is deterministic)
-- [ ] T014 [P] [US2] Failing pytest in `backend/tests/test_read_only.py`: create/update/delete income and bills on a non-current month return `403`; the same operations on the current calendar month succeed; a notes-only `PATCH /api/months/{id}` on an old month succeeds; an account balance update succeeds while a read-only month is the active view (FR-009); carry-forward creating a new month is NOT blocked (per `contracts/read-only-guard.md`)
-- [ ] T015 [P] [US2] Failing pytest in `backend/tests/test_read_only.py`: a Claude write targets the current calendar month; when the calendar month does not exist, the dispatch reports it has no month to write to
-- [ ] T016 [P] [US2] Failing Vitest in `frontend/src/hooks/__tests__/useMonths.test.ts`: `editableMonthId` is the month matching the browser's local `YYYY-MM` (not the latest month), and `isReadOnly` is true for both earlier and future-dated months
-- [ ] T017 [P] [US2] Failing Vitest in `frontend/src/screens/__tests__/Dashboard.test.tsx`: when no month matches the current calendar month, the dashboard shows a "create this month" prompt rather than treating the latest month as editable
+- [X] T013 [P] [US2] Failing pytest in `backend/tests/test_current_month.py`: the current-month helper resolves the `BudgetMonth` whose `month` equals the injected local `YYYY-MM`, and returns `None` when no such month exists (inject/patch the reference date so the test is deterministic)
+- [X] T014 [P] [US2] Failing pytest in `backend/tests/test_read_only.py`: create/update/delete income and bills on a non-current month return `403`; the same operations on the current calendar month succeed; a notes-only `PATCH /api/months/{id}` on an old month succeeds; an account balance update succeeds while a read-only month is the active view (FR-009); carry-forward creating a new month is NOT blocked (per `contracts/read-only-guard.md`)
+- [X] T015 [P] [US2] Failing pytest in `backend/tests/test_read_only.py`: a Claude write targets the current calendar month; when the calendar month does not exist, the dispatch reports it has no month to write to
+- [X] T016 [P] [US2] Failing Vitest in `frontend/src/hooks/__tests__/useMonths.test.ts`: `editableMonthId` is the month matching the browser's local `YYYY-MM` (not the latest month), and `isReadOnly` is true for both earlier and future-dated months
+- [X] T017 [P] [US2] Failing Vitest in `frontend/src/screens/__tests__/Dashboard.test.tsx`: when no month matches the current calendar month, the dashboard shows a "create this month" prompt rather than treating the latest month as editable
 
 ### Implementation for User Story 2
 
-- [ ] T018 [US2] Implement `backend/current_month.py` — resolve the current-calendar-month `BudgetMonth`/id from local time; add `current_calendar_month_id(session)` to `backend/routers/deps.py` (retire `latest_month_id` from the write path)
-- [ ] T019 [US2] Add the read-only guard to `backend/routers/income.py` — reject create/update/delete with `403` "This month is read-only …" when the target's `month_id` ≠ current calendar month (depends on T018)
-- [ ] T020 [P] [US2] Add the same read-only guard to `backend/routers/bills.py` (depends on T018)
-- [ ] T021 [US2] Change the Claude write target in `backend/routers/claude.py` and `backend/claude_tools.py` from `latest_month_id` to the current calendar month; ensure the context "current month" label matches (`backend/claude_context.py` if needed) (depends on T018)
-- [ ] T022 [US2] Update `frontend/src/hooks/useMonths.ts` — compute `editableMonthId` as the month matching the browser-local `YYYY-MM`; `isReadOnly(monthId)` accordingly
-- [ ] T023 [US2] Update `frontend/src/screens/Dashboard.tsx` (and `App.tsx` active-month wiring if needed) — show a create-current-month prompt when the calendar month is absent; keep read-only messaging consistent (depends on T022)
-- [ ] T024 [US2] Record the Phase 3 "current month = calendar month" divergence in `docs/progress-log.md`. (The governing wording is **already amended** ahead of implementation — Constitution Principle IV → v1.2.0 and the `CLAUDE.md` mirror, both 2026-07-26; verify the code in T018–T023 matches that wording and no stray "latest month" write path remains.)
+- [X] T018 [US2] Implement `backend/current_month.py` — resolve the current-calendar-month `BudgetMonth`/id from local time; add `current_calendar_month_id(session)` to `backend/routers/deps.py` (retire `latest_month_id` from the write path)
+- [X] T019 [US2] Add the read-only guard to `backend/routers/income.py` — reject create/update/delete with `403` "This month is read-only …" when the target's `month_id` ≠ current calendar month (depends on T018)
+- [X] T020 [P] [US2] Add the same read-only guard to `backend/routers/bills.py` (depends on T018)
+- [X] T021 [US2] Change the Claude write target in `backend/routers/claude.py` and `backend/claude_tools.py` from `latest_month_id` to the current calendar month; ensure the context "current month" label matches (`backend/claude_context.py` if needed) (depends on T018)
+- [X] T022 [US2] Update `frontend/src/hooks/useMonths.ts` — compute `editableMonthId` as the month matching the browser-local `YYYY-MM`; `isReadOnly(monthId)` accordingly
+- [X] T023 [US2] Update `frontend/src/screens/Dashboard.tsx` (and `App.tsx` active-month wiring if needed) — show a create-current-month prompt when the calendar month is absent; keep read-only messaging consistent (depends on T022)
+- [X] T024 [US2] Record the Phase 3 "current month = calendar month" divergence in `docs/progress-log.md`. (The governing wording is **already amended** ahead of implementation — Constitution Principle IV → v1.2.0 and the `CLAUDE.md` mirror, both 2026-07-26; verify the code in T018–T023 matches that wording and no stray "latest month" write path remains.)
 
 **Checkpoint**: US1 and US2 both work independently; the whole app shares one calendar-month definition.
 

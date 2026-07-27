@@ -6,12 +6,19 @@ from datetime import date, timedelta
 import claude_context
 from config import settings
 
-from tests.factories import make_account, make_bill, make_income, make_month
+from tests.factories import (
+    CURRENT_MONTH,
+    PREVIOUS_MONTH,
+    make_account,
+    make_bill,
+    make_income,
+    make_month,
+)
 
 
 def test_context_includes_full_financial_picture(db_session):
-    m1 = make_month(db_session, month="2026-05")
-    m2 = make_month(db_session, month="2026-06")
+    m1 = make_month(db_session, month=PREVIOUS_MONTH)
+    m2 = make_month(db_session, month=CURRENT_MONTH)
     inc = make_income(db_session, m2.id, label="Salary", amount=3200.0)
     bill = make_bill(db_session, m2.id, label="Mortgage", amount=1100.0, category="Housing")
     acc = make_account(db_session, label="Savings", balance=8400.0, account_type="savings")
@@ -19,8 +26,8 @@ def test_context_includes_full_financial_picture(db_session):
     ctx = claude_context.build_budget_context(db_session)
 
     assert ctx["current_month_id"] == m2.id
-    assert [m["month"] for m in ctx["months"]] == ["2026-05", "2026-06"]
-    june = next(m for m in ctx["months"] if m["month"] == "2026-06")
+    assert [m["month"] for m in ctx["months"]] == [PREVIOUS_MONTH, CURRENT_MONTH]
+    june = next(m for m in ctx["months"] if m["month"] == CURRENT_MONTH)
     assert june["id"] == m2.id
     assert june["summary"] == {
         "total_income": 3200.0,
@@ -50,7 +57,7 @@ def test_context_includes_full_financial_picture(db_session):
 
 
 def test_context_flags_stale_balance(db_session):
-    make_month(db_session, month="2026-06")
+    make_month(db_session, month=CURRENT_MONTH)
     fresh = date.today() - timedelta(days=5)
     stale = date.today() - timedelta(days=45)
     make_account(db_session, label="Current", balance=100.0, as_of=fresh)
@@ -64,7 +71,7 @@ def test_context_flags_stale_balance(db_session):
 
 
 def test_context_includes_balance_snapshots(client, db_session):
-    make_month(db_session, month="2026-06")
+    make_month(db_session, month=CURRENT_MONTH)
     account_id = client.post("/api/accounts", json={"label": "Savings", "balance": 8000.0}).json()[
         "id"
     ]
@@ -76,7 +83,7 @@ def test_context_includes_balance_snapshots(client, db_session):
 
 
 def test_is_stale_boundary(db_session):
-    make_month(db_session, month="2026-06")
+    make_month(db_session, month=CURRENT_MONTH)
     today = date.today()
     exactly_30 = today - timedelta(days=30)
     just_under = today - timedelta(days=29)
@@ -90,7 +97,7 @@ def test_is_stale_boundary(db_session):
 
 
 def test_snapshot_ordering_by_date(client, db_session):
-    make_month(db_session, month="2026-06")
+    make_month(db_session, month=CURRENT_MONTH)
     account_id = client.post("/api/accounts", json={"label": "Current", "balance": 1000.0}).json()[
         "id"
     ]
@@ -107,7 +114,7 @@ def test_snapshot_ordering_by_date(client, db_session):
 
 
 def test_context_snapshot_fields(client, db_session):
-    make_month(db_session, month="2026-06")
+    make_month(db_session, month=CURRENT_MONTH)
     account_id = client.post("/api/accounts", json={"label": "Savings", "balance": 8000.0}).json()[
         "id"
     ]
@@ -124,7 +131,7 @@ def test_context_excludes_secrets(db_session, monkeypatch):
     monkeypatch.setattr(settings, "anthropic_api_key", "sk-ant-SECRET-value")
     monkeypatch.setattr(settings, "app_pin", "4321")
     monkeypatch.setattr(settings, "database_url", "/mnt/usbssd/budget.db")
-    make_month(db_session, month="2026-06")
+    make_month(db_session, month=CURRENT_MONTH)
     make_account(db_session, label="Savings", balance=8400.0)
 
     serialized = json.dumps(claude_context.build_budget_context(db_session))

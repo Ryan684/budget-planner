@@ -8,7 +8,7 @@ from fastapi import APIRouter, Depends, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from routers.deps import get_or_404
+from routers.deps import get_or_404, require_editable_month
 
 router = APIRouter(prefix="/api", tags=["income"])
 
@@ -28,6 +28,7 @@ def list_income(month_id: int, db: Session = Depends(get_db)):
 )
 def create_income(month_id: int, payload: schemas.IncomeCreate, db: Session = Depends(get_db)):
     get_or_404(db, models.BudgetMonth, month_id)
+    require_editable_month(db, month_id)
     entity = models.IncomeEntry(month_id=month_id, **payload.model_dump())
     return crud.create_entity(db, entity, entity_type="income", month_id=month_id)
 
@@ -35,6 +36,7 @@ def create_income(month_id: int, payload: schemas.IncomeCreate, db: Session = De
 @router.patch("/income/{income_id}", response_model=schemas.IncomeRead)
 def update_income(income_id: int, payload: schemas.IncomeUpdate, db: Session = Depends(get_db)):
     entity = get_or_404(db, models.IncomeEntry, income_id)
+    require_editable_month(db, entity.month_id)
     return crud.update_entity(
         db,
         entity,
@@ -47,4 +49,5 @@ def update_income(income_id: int, payload: schemas.IncomeUpdate, db: Session = D
 @router.delete("/income/{income_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_income(income_id: int, db: Session = Depends(get_db)):
     entity = get_or_404(db, models.IncomeEntry, income_id)
+    require_editable_month(db, entity.month_id)
     crud.delete_entity(db, entity, entity_type="income", month_id=entity.month_id)

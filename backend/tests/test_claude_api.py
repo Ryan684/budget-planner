@@ -5,14 +5,21 @@ from datetime import date, timedelta
 import anthropic
 import models
 
-from tests.factories import make_account, make_bill, make_income, make_month
+from tests.factories import (
+    CURRENT_MONTH,
+    PREVIOUS_MONTH,
+    make_account,
+    make_bill,
+    make_income,
+    make_month,
+)
 from tests.fake_anthropic import FakeAnthropic, install, text_turn, tool_turn
 
 
 def _seed(db_session):
     """A current month with income, bills, and accounts."""
-    make_month(db_session, month="2026-05")
-    month = make_month(db_session, month="2026-06")
+    make_month(db_session, month=PREVIOUS_MONTH)
+    month = make_month(db_session, month=CURRENT_MONTH)
     make_income(db_session, month.id, label="Salary", amount=3200.0)
     make_bill(db_session, month.id, label="Mortgage", amount=1100.0, category="Housing")
     make_bill(db_session, month.id, label="Electricity", amount=85.0, category="Utilities")
@@ -73,7 +80,7 @@ def test_conversation_history_is_sent(client, db_session, monkeypatch):
 
 
 def test_stale_balance_flagged_in_context_for_read(client, db_session, monkeypatch):
-    make_month(db_session, month="2026-06")
+    make_month(db_session, month=CURRENT_MONTH)
     make_account(
         db_session, label="Old savings", balance=8400.0, as_of=date.today() - timedelta(days=45)
     )
@@ -223,8 +230,8 @@ def test_delete_bill(client, db_session, monkeypatch):
 
 
 def test_previous_month_write_refused_no_change(client, db_session, monkeypatch):
-    previous = make_month(db_session, month="2026-05")
-    make_month(db_session, month="2026-06")  # current
+    previous = make_month(db_session, month=PREVIOUS_MONTH)
+    make_month(db_session, month=CURRENT_MONTH)  # current
     old_bill = make_bill(db_session, previous.id, label="Old insurance", amount=30.0)
     install(
         monkeypatch,
@@ -279,7 +286,7 @@ def test_atomic_rollback_when_one_write_in_turn_fails(client, db_session, monkey
 
 
 def test_stale_balance_flagged_in_context_for_write(client, db_session, monkeypatch):
-    make_month(db_session, month="2026-06")
+    make_month(db_session, month=CURRENT_MONTH)
     account = make_account(
         db_session, label="Savings", balance=8400.0, as_of=date.today() - timedelta(days=45)
     )
@@ -408,11 +415,11 @@ def test_comparison_has_both_months_in_context(client, db_session, monkeypatch):
     )
     assert resp.status_code == 200
     system = fake.create_calls[0]["system"]
-    assert '"2026-05"' in system and '"2026-06"' in system
+    assert f'"{PREVIOUS_MONTH}"' in system and f'"{CURRENT_MONTH}"' in system
 
 
 def test_single_month_comparison_is_graceful(client, db_session, monkeypatch):
-    make_month(db_session, month="2026-06")  # only one month
+    make_month(db_session, month=CURRENT_MONTH)  # only one month
     fake = install(
         monkeypatch, FakeAnthropic([text_turn("There's no previous month to compare against yet.")])
     )
