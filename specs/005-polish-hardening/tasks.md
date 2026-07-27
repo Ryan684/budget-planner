@@ -23,8 +23,8 @@ description: "Task list for Phase 5 — Polish & Hardening"
 
 **Purpose**: Gherkin-first acceptance scenarios and mutation-test config — must complete before any code (Constitution build order step 1).
 
-- [ ] T001 Add clarified Gherkin scenarios for US1–US4 to `docs/budget-planner.feature` (a `Feature: Polish & Hardening` block): PIN gate shown/skipped/wrong/unlock/session (US1); previous+future months read-only for income/bills, notes editable, accounts editable, current = calendar month (US2); backend-unreachable / Claude-API-down / failed-write error states and the backup banner failed/stale/healthy/unknown (US3); README-driven fresh-Pi bring-up (US4) — sourced from `specs/005-polish-hardening/spec.md` acceptance scenarios
-- [ ] T002 [P] Add `backend/current_month.py`, `backend/backup_status.py`, `backend/routers/auth.py`, and `backend/routers/system.py` to `paths_to_mutate` in the `[tool.mutmut]` section of `backend/pyproject.toml`
+- [X] T001 Add clarified Gherkin scenarios for US1–US4 to `docs/budget-planner.feature` (a `Feature: Polish & Hardening` block): PIN gate shown/skipped/wrong/unlock/session (US1); previous+future months read-only for income/bills, notes editable, accounts editable, current = calendar month (US2); backend-unreachable / Claude-API-down / failed-write error states and the backup banner failed/stale/healthy/unknown (US3); README-driven fresh-Pi bring-up (US4) — sourced from `specs/005-polish-hardening/spec.md` acceptance scenarios
+- [X] T002 [P] Add `backend/current_month.py`, `backend/backup_status.py`, `backend/routers/auth.py`, and `backend/routers/system.py` to `paths_to_mutate` in the `[tool.mutmut]` section of `backend/pyproject.toml`
 
 ---
 
@@ -34,7 +34,7 @@ description: "Task list for Phase 5 — Polish & Hardening"
 
 **⚠️ CRITICAL**: US3 (backup status) cannot be tested without these settings present.
 
-- [ ] T003 Add `backup_log_file: str = ""` and `backup_stale_hours: int = 36` settings to `backend/config.py` `Settings` (blank log file ⇒ status `unknown`, dev-safe), with docstring comments matching `data-model.md`
+- [X] T003 Add `backup_log_file: str = ""` and `backup_stale_hours: int = 36` settings to `backend/config.py` `Settings` (blank log file ⇒ status `unknown`, dev-safe), with docstring comments matching `data-model.md`
 
 **Checkpoint**: Config settings importable — story work can begin. Stories may proceed in parallel; recommended order is P1 → P2 → P3 → P4.
 

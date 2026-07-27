@@ -26,5 +26,14 @@ class Settings(BaseSettings):
     # means /api/claude returns a friendly "assistant unavailable" error.
     anthropic_api_key: str = ""
 
+    # Path to the Phase 4 nightly-backup run log that /api/backup-status reads.
+    # Blank (the dev default) means the status is "unknown" and no dashboard
+    # banner is shown — a missing log must never raise a false alarm.
+    backup_log_file: str = ""
+
+    # Age in hours beyond which the last successful backup counts as "stale".
+    # 36h = one missed nightly run (24h) plus margin.
+    backup_stale_hours: int = 36
+
 
 settings = Settings()

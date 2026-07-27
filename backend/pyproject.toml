@@ -38,6 +38,8 @@ py-modules = [
     "claude_context",
     "claude_tools",
     "claude_client",
+    "current_month",
+    "backup_status",
 ]
 packages = ["routers"]
 
@@ -57,5 +59,9 @@ paths_to_mutate = [
     "claude_tools.py",
     "claude_client.py",
     "backup.py",
+    "current_month.py",
+    "backup_status.py",
+    "routers/auth.py",
+    "routers/system.py",
 ]
 tests_dir = ["tests/"]
