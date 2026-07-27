@@ -139,9 +139,9 @@ description: "Task list for Phase 5 — Polish & Hardening"
 
 **Purpose**: Quality gates and validation across all stories (Constitution II + build order).
 
-- [ ] T038 [P] Run backend mutation tests (`cd backend && mutmut run`) for the new modules (`auth`, `current_month`, `backup_status`, income/bills guard); record any accepted survivors in `MUTANTS.md`
-- [ ] T039 [P] Run frontend mutation tests (`cd frontend && npm run test:mutation`) for the new PIN/backup-banner/useMonths logic; record any accepted survivors in `MUTANTS.md`
-- [ ] T040 Run all linters and test suites and fix everything: `cd backend && ruff check . && ruff format --check . && pytest`; `cd frontend && npm run lint && npx tsc --noEmit && npm run test`
+- [X] T038 [P] Run backend mutation tests (`cd backend && mutmut run`) for the new modules (`auth`, `current_month`, `backup_status`, income/bills guard); record any accepted survivors in `MUTANTS.md`
+- [X] T039 [P] Run frontend mutation tests (`cd frontend && npm run test:mutation`) for the new PIN/backup-banner/useMonths logic; record any accepted survivors in `MUTANTS.md`
+- [X] T040 Run all linters and test suites and fix everything: `cd backend && ruff check . && ruff format --check . && pytest`; `cd frontend && npm run lint && npx tsc --noEmit && npm run test`
 - [ ] T041 Execute `specs/005-polish-hardening/quickstart.md` Part A (local validation of PIN, read-only, error states, backup banner) on the dev machine
 - [ ] T042 Update `docs/progress-log.md` — Phase 5 handoff: files created/modified, the calendar-month reconciliation decision + Constitution amendment, and the exact next step (operator runs quickstart Part B on the Pi)
 - [ ] T043 [Pi-only] Operator executes `specs/005-polish-hardening/quickstart.md` Part B (fresh-Pi E2E, FR-018) on the Pi and records completion in `docs/progress-log.md`. **Blocked by Phase 4's Pi deployment/validation** (backup timer + log must be live per `docs/progress-log.md`) — this task cannot be completed locally.

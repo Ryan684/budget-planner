@@ -1,3 +1,58 @@
+# Surviving Mutants — Phase 5 (Polish & Hardening)
+
+Mutation testing run with **mutmut 3.5.0** (now pinned in `backend/pyproject.toml`;
+3.6.0 cannot import unmutated modules from its copied source tree). Phase 5 adds
+`current_month.py`, `backup_status.py`, `routers/auth.py`, `routers/system.py`, and
+`routers/deps.py` to `paths_to_mutate`.
+
+**Run:** 2026-07-27 — scoped to the Phase 5 modules.
+
+| Module | Result |
+|---|---|
+| `current_month.py` | all mutants killed |
+| `routers/auth.py` | all mutants killed |
+| `routers/system.py` | all mutants killed |
+| `backup_status.py` | 3 survived (below) |
+| `routers/deps.py` | 23 reported "no tests" — false, verified killed (below) |
+
+Seven `backup_status.py` survivors from the first run were **genuine gaps and are now
+killed** by new tests: the staleness threshold boundary (`>` vs `>=`, and `3600` vs
+`3601`), a well-shaped line with an impossible date halting the scan (`continue` → `break`),
+and the `errors="replace"` argument that keeps an undecodable byte in the shell-written log
+from raising. Those tests are in `backend/tests/test_backup_status.py`.
+
+## Group 1 — Equivalent mutants (3)
+
+| Mutant ID | File | Mutation | Why equivalent |
+|---|---|---|---|
+| `backup_status.x__read_lines__mutmut_3` | backup_status.py | `encoding="utf-8"` → `encoding=None` | The runtime's default encoding is UTF-8, so the file decodes identically. The explicit encoding is deliberate — it must not depend on the Pi's locale — but no test can distinguish the two in a UTF-8 environment. |
+| `backup_status.x__read_lines__mutmut_6` | backup_status.py | `encoding` argument removed | Same as above. |
+| `backup_status.x__read_lines__mutmut_9` | backup_status.py | `encoding="utf-8"` → `encoding="UTF-8"` | Python normalises encoding names; the two are the same codec. |
+
+## Group 2 — mutmut false "no tests" in `routers/deps.py` (23)
+
+mutmut's per-mutant test selection finds no covering test for the router-dependency
+module, the same limitation recorded for Phase 1 with the FastAPI + SQLAlchemy import
+graph. The read-only guard **is** covered — `backend/tests/test_read_only.py` asserts both
+the `403` and its detail text on six endpoints.
+
+**Evidence** — each mutation applied directly to `routers/deps.py`, then the full suite run
+(baseline: 183 passed):
+
+| Mutation | Result |
+|---|---|
+| `require_editable_month`: `month_id != …` → `month_id == …` | **24 failed** |
+| `require_editable_month`: `status_code=403` → `status_code=None` | **8 failed** |
+| `require_editable_month`: `detail=READ_ONLY_DETAIL` → `detail=None` | **2 failed** |
+| `current_calendar_month_id`: `current_month_id(session)` → `current_month_id(None)` | **24 failed** |
+
+The remaining `get_or_404` / `latest_month_id` mutants in the same file are Phase 1 code
+covered by the existing API tests and are reported the same way for the same reason.
+
+No surviving mutant represents a genuine, unkilled behavioural gap.
+
+---
+
 # Surviving Mutants — Phase 1 (Data Layer)
 
 Mutation testing is run with **mutmut 3.5.0** scoped to the core logic modules

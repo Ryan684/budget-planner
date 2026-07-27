@@ -1,8 +1,19 @@
 {
   "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
   "testRunner": "vitest",
-  "mutate": ["src/lib/**/*.ts", "!src/lib/__tests__/**"],
-  "reporters": ["html", "clear-text", "progress"],
+  "mutate": [
+    "src/lib/**/*.ts",
+    "!src/lib/__tests__/**",
+    "src/hooks/usePinGate.ts",
+    "src/hooks/useMonths.ts",
+    "src/components/BackupBanner.tsx",
+    "src/api/client.ts"
+  ],
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ],
   "coverageAnalysis": "perTest",
   "vitest": {
     "configFile": "vite.config.ts"

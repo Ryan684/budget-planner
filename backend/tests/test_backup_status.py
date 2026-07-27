@@ -189,3 +189,49 @@ def test_endpoint_returns_200_unknown_when_no_log_exists(client, monkeypatch):
 
     assert res.status_code == 200
     assert res.json() == {"status": "unknown", "last_run_at": None, "stale": False}
+
+
+# ---------------------------------------------------------------------------
+# Boundaries and robustness (mutation-driven)
+# ---------------------------------------------------------------------------
+RUN_AT = datetime(2026, 7, 26, 2, 30, tzinfo=UTC)
+
+
+def test_a_success_exactly_at_the_threshold_is_not_stale(log_file):
+    """The threshold is exclusive — 36h on the dot is still fresh."""
+    log_file("[2026-07-26T02:30:00Z] SUCCESS\n", stale_hours=36)
+
+    result = backup_status.read_status(now=RUN_AT + timedelta(hours=36))
+
+    assert result.stale is False
+
+
+def test_a_success_one_second_past_the_threshold_is_stale(log_file):
+    log_file("[2026-07-26T02:30:00Z] SUCCESS\n", stale_hours=36)
+
+    result = backup_status.read_status(now=RUN_AT + timedelta(hours=36, seconds=1))
+
+    assert result.stale is True
+
+
+def test_a_bad_timestamp_does_not_stop_the_scan(log_file):
+    """A well-shaped line with an impossible date must not hide the last good run."""
+    log_file(f"[{stamp(2)}] SUCCESS\n[2026-13-99T99:99:99Z] FAILED: x\n")
+
+    result = backup_status.read_status()
+
+    assert result.status == "success"
+
+
+def test_a_log_with_undecodable_bytes_is_still_parsed(tmp_path, monkeypatch):
+    """The log is written by a shell script; a stray byte must not break the read."""
+    path = tmp_path / "budget-backup.log"
+    path.write_bytes(
+        b"[2026-07-26T02:29:00Z] FAILED: caf\xe9 outage\n[2026-07-26T02:30:00Z] SUCCESS\n"
+    )
+    monkeypatch.setattr(settings, "backup_log_file", str(path))
+    monkeypatch.setattr(settings, "backup_stale_hours", 36)
+
+    result = backup_status.read_status(now=RUN_AT)
+
+    assert result.status == "success"

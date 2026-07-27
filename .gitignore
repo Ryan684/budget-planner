@@ -27,6 +27,11 @@ node_modules/
 dist/
 *.local
 
+# Mutation-testing output
+mutants/
+.stryker-tmp/
+frontend/reports/
+
 # Editor / OS
 .DS_Store
 .idea/

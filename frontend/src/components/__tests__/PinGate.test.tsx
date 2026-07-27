@@ -136,3 +136,32 @@ describe('PinGate', () => {
     expect(screen.getByRole('button', { name: /unlock/i })).toBeEnabled()
   })
 })
+
+describe('PinGate while the gate check is in flight', () => {
+  it('shows a loading state rather than the lock screen or the app', async () => {
+    let release: (v: { required: boolean }) => void = () => {}
+    mockPinRequired.mockReturnValue(new Promise(resolve => { release = resolve }))
+    renderGate()
+
+    expect(screen.getByRole('status', { name: /loading/i })).toBeInTheDocument()
+    expect(screen.queryByLabelText(/pin/i)).not.toBeInTheDocument()
+    expect(screen.queryByText(SECRET)).not.toBeInTheDocument()
+
+    release({ required: true })
+    expect(await screen.findByLabelText(/pin/i)).toBeInTheDocument()
+  })
+
+  it('disables the unlock button while a PIN is being checked', async () => {
+    mockPinRequired.mockResolvedValue({ required: true })
+    let release: (v: { ok: boolean }) => void = () => {}
+    mockVerifyPin.mockReturnValue(new Promise(resolve => { release = resolve }))
+    renderGate()
+    await screen.findByLabelText(/pin/i)
+
+    await enterPin('1234')
+
+    expect(screen.getByRole('button', { name: /checking/i })).toBeDisabled()
+    release({ ok: true })
+    expect(await screen.findByText(SECRET)).toBeInTheDocument()
+  })
+})

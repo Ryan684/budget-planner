@@ -43,10 +43,13 @@ export async function apiFetch<T>(
 
   let res: Response
   try {
+    // `init` is spread first so the merged headers and the timeout signal win —
+    // spreading it last would let a caller's `headers` replace the content type
+    // wholesale and drop the abort signal.
     res = await fetch(url, {
+      ...init,
       headers: { 'Content-Type': 'application/json', ...init?.headers },
       signal: controller.signal,
-      ...init,
     })
   } catch {
     // A timeout, a refused connection, or a dropped network all read the same

@@ -5,9 +5,18 @@
     "configFile": "vite.config.ts"
   },
   "mutate": [
-    "src/lib/**/*.ts"
+    "src/lib/**/*.ts",
+    "!src/lib/__tests__/**",
+    "src/hooks/usePinGate.ts",
+    "src/hooks/useMonths.ts",
+    "src/components/BackupBanner.tsx",
+    "src/api/client.ts"
   ],
-  "reporters": ["html", "clear-text", "progress"],
+  "reporters": [
+    "html",
+    "clear-text",
+    "progress"
+  ],
   "htmlReporter": {
     "fileName": "reports/mutation/mutation.html"
   },

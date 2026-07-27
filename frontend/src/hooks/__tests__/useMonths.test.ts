@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, waitFor } from '@testing-library/react'
+import { renderHook, waitFor, act } from '@testing-library/react'
 import { useMonths } from '../useMonths'
 
 vi.mock('../../api/months', () => ({
@@ -85,5 +85,38 @@ describe('useMonths', () => {
     const result = await loadMonths([month(1, '2026-05'), month(3, '2026-09')])
 
     expect(result.current.latestMonthId).toBe(3)
+  })
+})
+
+describe('useMonths loading and refetch', () => {
+  it('starts in a loading state', () => {
+    mockListMonths.mockResolvedValue([])
+    const { result } = renderHook(() => useMonths())
+
+    expect(result.current.loading).toBe(true)
+  })
+
+  it('picks the newest month regardless of the order returned', async () => {
+    const result = await loadMonths([month(3, '2026-09'), month(1, '2026-05')])
+
+    expect(result.current.latestMonthId).toBe(3)
+  })
+
+  it('reloads the months when refetch is called', async () => {
+    const result = await loadMonths([month(1, '2026-05')])
+    mockListMonths.mockResolvedValue([month(1, '2026-05'), month(2, '2026-06')])
+
+    act(() => result.current.refetch())
+
+    await waitFor(() => expect(result.current.editableMonthId).toBe(2))
+    expect(mockListMonths).toHaveBeenCalledTimes(2)
+  })
+
+  it('surfaces a load failure as an error', async () => {
+    mockListMonths.mockRejectedValue(new Error('Could not reach the app.'))
+    const { result } = renderHook(() => useMonths())
+
+    await waitFor(() => expect(result.current.loading).toBe(false))
+    expect(result.current.error).toMatch(/could not reach/i)
   })
 })
