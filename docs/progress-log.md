@@ -7,9 +7,9 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Current Status
 
-**Phase:** 🟡 Phase 5 (Polish & Hardening) — **code-complete, all automated gates green; Pi-only manual gate remaining.** Backend 183 pytest, ruff clean, mutmut on the Phase 5 modules (3 documented equivalent survivors in `backup_status.py`; `routers/deps.py` "no tests" verified as a tool false negative). Frontend 204 Vitest, ESLint + `tsc --noEmit` clean, Stryker 85.63% (up from 70.96%). Quickstart Part A executed locally against a live backend — every PIN, read-only, error-state and backup-banner case behaved as specified, and the built bundle contains no PIN. **T043 (quickstart Part B, the fresh-Pi end-to-end) is Pi-only and not yet executed**, and it is still blocked by Phase 4's Pi deployment. Phase 4's Pi-only backup/recovery gates, and the Phase 2/3/4 PRs, remain open from before.
-**Last updated:** 2026-07-27
-**Next session goal:** Execute the Pi-only manual gates on the Pi, in this order: (1) Phase 4's backup end-to-end + recovery test (quickstart §3–§4), since Phase 5's backup banner depends on a live `BACKUP_LOG_FILE`; (2) Phase 5's `specs/005-polish-hardening/quickstart.md` Part B — the 11-step fresh-Pi checklist now mirrored in the README's "End-to-end validation checklist". Record completion of both here, then open the outstanding PRs.
+**Phase:** 🟡 Phase 5 (Polish & Hardening) — **code-complete, all automated gates green; Pi-only manual gate remaining.** Backend 183 pytest, ruff clean, mutmut on the Phase 5 modules (3 documented equivalent survivors in `backup_status.py`; `routers/deps.py` "no tests" verified as a tool false negative). Frontend 204 Vitest, ESLint + `tsc --noEmit` clean, Stryker 85.63% (up from 70.96%). Quickstart Part A executed locally against a live backend — every PIN, read-only, error-state and backup-banner case behaved as specified, and the built bundle contains no PIN. **T043 (quickstart Part B, the fresh-Pi end-to-end) is Pi-only and not yet executed**, and it is still blocked by Phase 4's Pi deployment. Phase 4's Pi-only backup/recovery gates remain outstanding. All feature PRs to date (Phase 2 #4, Phase 3 #5, Phase 4 #7, Phase 5 #8) are **merged to `main`** — no open PRs remain.
+**Last updated:** 2026-08-17
+**Next session goal:** Execute the Pi-only manual gates on the Pi, in this order: (1) Phase 4's backup end-to-end + recovery test (`specs/004-backup-automation/quickstart.md` §3–§4), since Phase 5's backup banner depends on a live `BACKUP_LOG_FILE`; (2) Phase 5's `specs/005-polish-hardening/quickstart.md` Part B — the 11-step fresh-Pi checklist now mirrored in the README's "End-to-end validation checklist". Record completion of both here. No PRs need opening — all prior work is already merged; this is the last gate before going live.
 
 ---
 
@@ -372,23 +372,14 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 - **mutmut 3.x false survivors:** 10 `crud.py` mutants report "survived" but are killed by the suite when applied directly — a mutmut 3.5.0 test-selection limitation, documented with evidence in `MUTANTS.md`. Not a coverage gap.
 - **mutmut config must use lists:** `paths_to_mutate` and `tests_dir` must be TOML lists, not comma-strings, or mutmut 3.x mutates the whole project / mis-parses the tests dir.
 
-## Starting point for next session (finish Phase 3 quality gates)
+## Starting point for next session — SUPERSEDED
 
-Phase 3 code, tests, and linters are green. Remaining tasks in
-`specs/003-claude-integration/tasks.md` are T033–T037:
-
-1. **Mutation gates.** A mutmut run is/was in progress this session — review survivors:
-   `cd backend && .venv/bin/mutmut results`, inspect each with `mutmut show <id>`, and record any
-   genuinely-acceptable survivors in `MUTANTS.md` (id / what mutated / why acceptable). The log
-   already notes a known mutmut-3.x false-survivor quirk for `crud.py`. Then run frontend Stryker:
-   `cd frontend && npm run test:mutation` (T033/T034).
-2. **Live-app validation (T036).** Needs a real `ANTHROPIC_API_KEY` in `.env.local` and a browser:
-   - Terminal 1: `cd backend && uvicorn main:app --reload --port 8000` (the
-     `account_balance_snapshots` table is created on startup; seed a month + income/bills/accounts).
-   - Terminal 2: `cd frontend && npm run dev`, open the Claude tab.
-   - Walk the `specs/003-claude-integration/quickstart.md` §5 table (query, write, undo, cross-month).
-3. **Open the Phase 3 PR** once gates pass. Note Phase 2's PR #4 and live-app gates T066–T068 are
-   still open from the prior session and may want resolving first.
+**This section is historical and stale — left over from the Phase 3 session (2026-06-20).**
+Everything it describes is long done: Phase 3's mutation gates and live-app validation (T033–T036)
+were completed the same week (see the Phase 3 entries below), and Phase 3's PR, along with Phase
+2's PR #4, have both been merged, as have Phase 4's PR #7 and Phase 5's PR #8. **The "Current
+Status" block at the top of this file is the authoritative next-step pointer** — do not follow the
+steps below. Kept only for the orientation paragraph, which is still accurate.
 
 **Quick orientation for whoever picks this up:** the whole feature funnels through
 `backend/routers/claude.py`; the Anthropic interaction lives in `backend/claude_client.py`
