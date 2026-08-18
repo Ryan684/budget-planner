@@ -8,12 +8,70 @@ Claude Code reads this file at the start of each session to understand current p
 ## Current Status
 
 **Phase:** 🟡 Phase 5 (Polish & Hardening) — **code-complete, all automated gates green; Pi-only manual gate remaining.** Backend 183 pytest, ruff clean, mutmut on the Phase 5 modules (3 documented equivalent survivors in `backup_status.py`; `routers/deps.py` "no tests" verified as a tool false negative). Frontend 204 Vitest, ESLint + `tsc --noEmit` clean, Stryker 85.63% (up from 70.96%). Quickstart Part A executed locally against a live backend — every PIN, read-only, error-state and backup-banner case behaved as specified, and the built bundle contains no PIN. **T043 (quickstart Part B, the fresh-Pi end-to-end) is Pi-only and not yet executed**, and it is still blocked by Phase 4's Pi deployment. Phase 4's Pi-only backup/recovery gates remain outstanding. All feature PRs to date (Phase 2 #4, Phase 3 #5, Phase 4 #7, Phase 5 #8) are **merged to `main`** — no open PRs remain.
+**Also:** the shared-Pi reconciliation (2026-08-17, below) is committed and pushed but **not yet deployed** — it changes this app's port to 8001 and removes the `budget-frontend` service.
 **Last updated:** 2026-08-17
-**Next session goal:** Execute the Pi-only manual gates on the Pi, in this order: (1) Phase 4's backup end-to-end + recovery test (`specs/004-backup-automation/quickstart.md` §3–§4), since Phase 5's backup banner depends on a live `BACKUP_LOG_FILE`; (2) Phase 5's `specs/005-polish-hardening/quickstart.md` Part B — the 11-step fresh-Pi checklist now mirrored in the README's "End-to-end validation checklist". Record completion of both here. No PRs need opening — all prior work is already merged; this is the last gate before going live.
+**Next session goal:** Execute the Pi-only manual gates on the Pi, in this order: (1) the shared-Pi migration in `family-dashboard/PI_SETUP.md` Part 19 — the dashboard must be moved to `127.0.0.1`, Python moved to uv and the overnight Chromium stop installed *before* this app is deployed alongside it; (2) Phase 4's backup end-to-end + recovery test (`specs/004-backup-automation/quickstart.md` §3–§4), since Phase 5's backup banner depends on a live `BACKUP_LOG_FILE`; (3) Phase 5's `specs/005-polish-hardening/quickstart.md` Part B — the 11-step fresh-Pi checklist now mirrored in the README's "End-to-end validation checklist", **on port 8001**. Record completion of all three here. No PRs need opening for prior work — all of it is already merged; the shared-Pi branch below is the only outstanding one.
 
 ---
 
 ## Phase Completion Log
+
+### 🔧 Shared-Pi reconciliation — budget planner + family dashboard on one Pi (2026-08-17)
+
+Branch `claude/budget-dashboard-hardware-compat-trxsp3`. Not a Spec Kit phase — a
+cross-cutting infrastructure change spanning this repo and `ryan684/family-dashboard`,
+so it does not follow the `NNN-short-name` branch convention (the session prompt fixed
+the branch name). Prompted by buying the Pi: a **4GB** Pi 5, now confirmed as the
+hardware for both apps.
+
+**The blocking problem:** both backends were configured to bind `0.0.0.0:8000`. Whichever
+systemd unit started second would have failed with "address already in use" and
+crash-looped under `Restart=on-failure`. Neither repo knew about the other.
+
+**What changed here:**
+
+- `backend/main.py` — `mount_frontend(target, dist_dir) -> bool` and `DIST_DIR`. The
+  backend now serves the built frontend itself, so the app is one process on one port.
+  Mounted at `/` (not `/assets`) because Vite copies `public/` — `favicon.svg`,
+  `icons.svg` — into the dist root, and registered *after* every router because a mount
+  at `/` is greedy for unmatched paths. No `dist/` (development) is a clean no-op.
+- `backend/tests/test_static_ui.py` (NEW) — 9 tests: index/assets/public serving, API not
+  shadowed, both unmounted cases, and `DIST_DIR`'s location.
+- `docs/budget-planner.feature` — new `Feature: Shared-Pi Deployment` (5 scenarios;
+  the port-collision one is operator-verified, like the fresh-Pi and Tailscale scenarios).
+- **Port 8000 → 8001**, dev and production: `frontend/vite.config.ts`, README, CLAUDE.md,
+  `specs/005-polish-hardening/quickstart.md`.
+- `scripts/systemd/budget-backup.timer` — **02:30 → 03:30**. The dashboard's deploy timer
+  fires at 02:00 and its `npm ci` + `vite build` can run 15–30 minutes on this hardware.
+- `backend/requirements.lock` (NEW) — generated with
+  `uv pip compile --universal --python-version 3.14`. The Pi installs from it instead of
+  resolving fresh. `pyproject.toml` gained version floors, including `starlette>=1.0.1`
+  for CVE-2026-48710, matching the floor family-dashboard already sets.
+- `scripts/assert-not-pi.sh` (NEW) — refuses to run on Raspberry Pi hardware (reads
+  `/proc/device-tree/model`; `ALLOW_PI_HEAVY_TESTS=1` overrides). Wired into
+  `npm run test:mutation`.
+- `.specify/memory/constitution.md` → **v1.3.0**, mirrored in CLAUDE.md.
+
+**In `ryan684/family-dashboard` on the same branch:** `scripts/stop-kiosk.sh` (NEW, kills
+Chromium at 22:00 to free ~0.5GB across the nightly window), memory caps on the deploy
+unit, a Node heap cap in `deploy.sh`, the backend moved to `127.0.0.1:8000`, pyenv → uv,
+the USB SSD added to the hardware BOM, and `PI_SETUP.md` Parts 19–20 (migration for a
+running Pi; zram, service trimming and logrotate).
+
+**Verification:** backend 192 pytest (183 + 9 new), ruff `check` + `format --check` clean;
+frontend 204 Vitest, ESLint and `tsc --noEmit` clean. The static-serving change was also
+verified end to end against a real `npm run build` and a live uvicorn on 8001: `/` and both
+hashed assets 200 with correct MIME types, `favicon.svg` and `icons.svg` 200, `/api/health`
+and `/api/months` 200 (not shadowed), path traversal and unknown paths 404.
+
+**Caveat on the test runs:** this container has Python 3.11.15, not 3.14. The suite passes
+there and no source uses 3.14-only syntax, but the gates have not been re-run on a 3.14
+interpreter. Re-run `pytest` on the Pi or a 3.14 laptop before treating this as fully green.
+
+**Deliberately not done:** moving the frontend builds off the Pi into CI. It is the biggest
+remaining 4GB win — no `npm ci`, no `node_modules` on the SD card — but it touches CI in
+both repos and belongs in its own change. The measures above already remove the memory
+collision, so it is now an optimisation rather than a fix.
 
 ### 🟡 Phase 5 — Polish & Hardening: implementation (2026-07-27)
 
@@ -350,6 +408,11 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | Divergence | Spec said | We did | Why |
 |---|---|---|---|
 | Backend test framework | "Vitest for Phase 1 calc" | **pytest** | The calc lives in Python; Vitest is frontend-only (Phase 2). Spec error. |
+| Backend port (2026-08-17) | Spec and CLAUDE.md used `:8000` throughout | **`:8001`**, dev and production | The Pi is shared with the family dashboard, which was deployed first and owns 8000. Both binding `0.0.0.0:8000` meant the second service to start would crash-loop. Dev matches production so the two apps can also run side by side on a laptop. |
+| Frontend serving (2026-08-17) | Spec Phase 0 and the README ran the built `dist/` behind a separate static server (`python3 -m http.server 5173`) | **FastAPI serves `dist/`** from the same process and port (`mount_frontend`); `budget-frontend.service` deleted | CLAUDE.md already allowed either. The static server was also broken: the bundle requests a relative `/api` (`frontend/src/api/client.ts`), which a static file server cannot answer, and the documented `API_BASE_URL` lacked the `VITE_` prefix Vite requires, so it was never read. Same origin fixes it, drops a port, a systemd unit and a process on a 4GB Pi, and needs no CORS config. `API_BASE_URL` is removed from the env. |
+| Backup timer (2026-08-17) | Phase 4 set `OnCalendar=*-*-* 02:30:00` | **03:30** | The dashboard's nightly deploy fires at 02:00 and its `npm ci` + `vite build` can run 15–30 minutes on this hardware; 30 minutes was not enough clearance. |
+| Mutation testing scope (2026-08-17) | Constitution II made mutation testing an unconditional gate | Still blocking for merge to `main`, but **never run on the Pi** | mutmut and Stryker will exhaust a 4GB Pi shared with a kiosk and two backends, and the OOM killer takes a live service with it. Constitution amended to v1.3.0; `scripts/assert-not-pi.sh` enforces it. |
+| Python packaging (2026-08-17) | CLAUDE.md and Constitution said "no `requirements.txt`" | Added generated **`backend/requirements.lock`** | `pyproject.toml` stays the source of truth and now declares floors; the lock is its compiled output and is what the Pi installs from, so a deploy gets the versions that were tested. Matches family-dashboard. |
 | Account schema | `account_balances` has no type column | Added **`account_type`** (`current`/`savings`) | Needed so `total_savings` (in the spec's budget logic) is computable. |
 | Amendment scope | Feature file asserts logging on *edits* | Log **all** writes (create/edit/delete) | CLAUDE.md "every write logged" + append-only audit principle. |
 | Account type selector (Phase 2) | research.md §8 anticipated a `current`/`savings` picker in the account sheet | **Deferred** — `ItemSheet` account mode collects label + balance only; `account_type` defaults server-side | No Phase 2 Gherkin scenario exercises the savings/current split; keeps the sheet minimal. Revisit if a savings-vs-current UI breakdown is wanted. |

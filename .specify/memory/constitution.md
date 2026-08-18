@@ -17,6 +17,12 @@ that will not be addressed MUST be recorded in `MUTANTS.md` (mutant ID, what was
 acceptable). Fix the code, not the linter config, unless a rule is genuinely inapplicable
 (then justify inline).
 
+Mutation testing is a **development-machine** gate and MUST NOT run on the Raspberry Pi: the
+Pi is a 4GB Pi 5 shared with the family dashboard, and mutmut or Stryker will exhaust its
+memory and take the OOM killer to a live service. On the Pi, satisfy the other gates, commit,
+and run mutation testing later on a development machine — it remains blocking for merge to
+`main`, not for a commit made on the Pi. `scripts/assert-not-pi.sh` enforces this.
+
 ### III. Typed, Schema-Driven, ORM-Only
 TypeScript throughout the frontend (no `any`). Pydantic schemas for all FastAPI
 request/response models. SQLAlchemy ORM only — no raw SQL. No inline styles in React (CSS
@@ -45,9 +51,16 @@ fresh from the API after any write — never from stale client data.
 
 - **Stack:** FastAPI (Python) backend; React + Vite (TypeScript) frontend; SQLite database;
   Anthropic API (`claude-sonnet-4-6`) for runtime AI calls.
-- **Packaging:** Python deps and tool config in `pyproject.toml` (no `requirements.txt`);
-  runtime deps in `[project.dependencies]`, dev/test (ruff, pytest, mutmut, httpx) in
-  `[project.optional-dependencies] dev`. Install with `pip install -e ".[dev]"`.
+- **Packaging:** Python deps and tool config in `pyproject.toml`, which declares version
+  **floors** and is the source of truth; runtime deps in `[project.dependencies]`, dev/test
+  (ruff, pytest, mutmut, httpx) in `[project.optional-dependencies] dev`. Install with
+  `pip install -e ".[dev]"`. `backend/requirements.lock` is the generated, committed
+  resolution of the runtime deps and is what the Pi installs from, so a deploy gets the exact
+  versions that were tested; regenerate it with uv whenever dependencies change, never by hand.
+- **Shared hardware:** production is one 4GB Raspberry Pi 5 shared with the family dashboard.
+  This app owns port 8001 and the 03:30 backup timer; the dashboard owns 8000 and the 02:00
+  deploy timer. Python 3.14 and Node 22 are single shared installs with a per-app venv and
+  `node_modules`. The backend serves its own built frontend — one process, one port.
 - **Persistence:** SQLite only — no migrations framework; schema changes are manual and
   documented. DB never committed; secrets and `.env` files never committed.
 - **Calculations:** `total_income`, `total_bills`, `monthly_surplus = income − bills`,
@@ -79,7 +92,17 @@ gates before merge to `main`. The phased plan (0: infra, 1: data layer, 2: UI, 3
 artifacts live under `specs/NNN-*/`; `docs/progress-log.md` is the authoritative session-handoff
 record.
 
-**Version**: 1.2.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-07-26
+**Version**: 1.3.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-08-17
+
+> **1.3.0 (2026-08-17)** — Principle II: mutation testing is scoped to development machines and
+> MUST NOT run on the Raspberry Pi; it stays blocking for merge to `main` but no longer blocks a
+> commit made on the Pi. Technical Constraints: added a committed `requirements.lock` as the
+> deploy-time resolution of the runtime dependencies (`pyproject.toml` keeps floors and remains
+> the source of truth), and recorded the shared-Pi allocation — this app on port 8001 with the
+> 03:30 backup timer, the family dashboard on 8000 with the 02:00 deploy timer, one shared
+> Python 3.14 and Node 22, and the backend serving its own built frontend. Rationale: the two
+> apps now share one 4GB Pi 5, which made the previous port collision fatal and memory the
+> binding constraint. Mirrored in `CLAUDE.md`. No change to Principles I or III–V.
 
 > **1.2.0 (2026-07-26)** — Principle IV: the "current month" that bounds writes is now explicitly
 > the current **calendar** month (local `YYYY-MM`), superseding the prior de-facto "latest month"

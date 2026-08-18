@@ -2,8 +2,13 @@
 Description=Nightly budget database backup timer (triggers budget-backup.service)
 
 [Timer]
-# Run nightly at 02:30 local time (low-activity hours).
-OnCalendar=*-*-* 02:30:00
+# Run nightly at 03:30 local time (low-activity hours).
+#
+# 03:30, not 02:30: the family dashboard shares this Pi and its nightly deploy
+# timer fires at 02:00, where `npm ci` + `vite build` can run for 15-30 minutes on
+# a 4GB Pi 5. A 30-minute gap risked this backup starting while that build was
+# still resident. Do not move it back without moving the deploy timer too.
+OnCalendar=*-*-* 03:30:00
 # Catch-up: if the Pi was powered off at the scheduled time, run the missed job on
 # the next boot rather than skipping until the following night (FR-001). Do not remove.
 Persistent=true

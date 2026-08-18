@@ -684,3 +684,43 @@ Feature: Polish & Hardening
   Scenario: The app is reachable remotely over Tailscale
     Given the README remote-access section has been followed
     Then the app is reachable from a phone over Tailscale
+
+Feature: Shared-Pi Deployment
+
+  # The budget planner shares one Raspberry Pi 5 (4GB) with the family dashboard.
+  # Added 2026-08-17 when the two deployments were reconciled: both backends were
+  # configured to bind port 8000, and the budget planner served its built frontend
+  # from a second process on port 5173 whose bundle requested a relative /api that
+  # a static file server cannot answer.
+
+  Scenario: The backend serves the built frontend
+    Given the frontend has been built to dist/
+    When I open the app's root URL on the backend port
+    Then the built index.html is returned
+    And its hashed assets under /assets/ are served
+    And files copied from public/, such as the favicon, are served
+
+  Scenario: The API is not shadowed by the frontend
+    Given the frontend has been built to dist/
+    When I request an /api/ route
+    Then the API responds, not the static frontend
+
+  Scenario: The app reaches its own API on one origin
+    Given the frontend is served by the backend
+    When the app calls the API
+    Then a relative /api path resolves to the same origin
+    And no absolute API base URL or CORS configuration is required
+
+  Scenario: An unbuilt frontend leaves the API working
+    Given the frontend has not been built, as in development
+    When the backend starts
+    Then the API serves normally
+    And no static frontend is mounted
+
+  # Operator-verified on the Pi (like the fresh-Pi and Tailscale scenarios above) —
+  # a port binding is deployment configuration, not application behaviour.
+  Scenario: Both apps run side by side without a port collision
+    Given the family dashboard is already running on the Pi on port 8000
+    When the budget planner backend is started on port 8001
+    Then both services are active
+    And each app is reachable on its own port

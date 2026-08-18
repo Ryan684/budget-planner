@@ -8,6 +8,7 @@ for the full specification.
 
 - [Fresh-Pi setup](#fresh-pi-setup) — bring a bare Pi to a working deployment
 - [Configuration reference](#configuration-reference)
+- [Sharing the Pi](#sharing-the-pi) — what the family dashboard on the same box owns
 - [Remote access (Tailscale)](#remote-access-tailscale)
 - [Backup & Recovery](#backup--recovery)
 - [End-to-end validation checklist](#end-to-end-validation-checklist)
@@ -25,19 +26,39 @@ README.
 Throughout, the source repo is assumed to live at `/home/pi/projects/budget-planner` and
 the USB SSD to be mounted at `/mnt/usbssd`. Adjust paths if your deployment differs.
 
+> **This Pi is shared with the family dashboard** (`ryan684/family-dashboard`), which was
+> deployed first and owns port 8000, the Chromium kiosk, and the 02:00 nightly deploy
+> timer. If that app is already set up, Python 3.14 and Node 22 exist and steps 1 and 2
+> are already done — skip to step 3. See [Sharing the Pi](#sharing-the-pi) before
+> changing any port, timer, or systemd unit.
+
 ### 1. Runtime prerequisites
 
 ```bash
 sudo apt update
-sudo apt install -y git sqlite3 python3 python3-venv python3-pip curl
+sudo apt install -y git sqlite3 curl
 ```
 
-The backend targets **Python 3.14**. If the Pi's distribution ships something older,
-install 3.14 alongside it (for example with [`uv`](https://docs.astral.sh/uv/):
-`curl -LsSf https://astral.sh/uv/install.sh | sh && uv python install 3.14`) and use that
-interpreter when creating the virtualenv below.
+The backend targets **Python 3.14** (`requires-python = ">=3.14"`), while Raspberry Pi OS
+Bookworm ships 3.11. Install 3.14 with [`uv`](https://docs.astral.sh/uv/), which downloads
+a prebuilt aarch64 build rather than compiling for 10–20 minutes on the Pi:
 
-Node is needed only to **build** the frontend — the Pi serves the built static files:
+```bash
+curl -LsSf https://astral.sh/uv/install.sh | sh
+source ~/.bashrc
+uv python install 3.14
+echo "export PY314=\$(uv python find 3.14)" >> ~/.bashrc
+source ~/.bashrc
+$PY314 --version   # Python 3.14.x
+```
+
+**One interpreter for both apps.** The family dashboard uses this same 3.14 install
+(`family-dashboard/PI_SETUP.md`, Part 6) — if it is already there, `$PY314` is already set
+and there is nothing to do. Two interpreters installed two different ways is the drift
+this is written to prevent.
+
+Node is needed only to **build** the frontend — the Pi serves the built static files. Both
+apps target Node 22, so install it once; if the dashboard is already deployed, skip this:
 
 ```bash
 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -75,8 +96,20 @@ findmnt /mnt/usbssd                     # confirm it is mounted
 mkdir -p /home/pi/projects
 git clone <your-repo-url> /home/pi/projects/budget-planner
 cd /home/pi/projects/budget-planner/backend
-python3.14 -m venv .venv
-.venv/bin/pip install -e ".[dev]"
+"$PY314" -m venv .venv
+# Install from the lockfile, not the resolver: the Pi then gets the exact versions
+# that were tested, rather than whatever PyPI resolves to that night. The package
+# itself goes in --no-deps because the lockfile already provided everything.
+.venv/bin/pip install -r requirements.lock
+.venv/bin/pip install -e . --no-deps
+```
+
+`requirements.lock` holds runtime dependencies only. On a development machine, install the
+test and lint tooling too with `pip install -e ".[dev]"`. Regenerate the lock whenever
+`pyproject.toml` changes, on a machine with uv:
+
+```bash
+uv pip compile pyproject.toml --universal --python-version 3.14 -o requirements.lock
 ```
 
 ### 4. Configure the environment
@@ -87,7 +120,6 @@ your API key and PIN, so never commit it.
 ```
 DATABASE_URL=/mnt/usbssd/budget.db
 ANTHROPIC_API_KEY=sk-...
-API_BASE_URL=http://<pi-lan-ip>:8000
 
 # Optional 4-digit access PIN. Blank disables the lock screen entirely.
 APP_PIN=1234
@@ -113,18 +145,28 @@ including changing `APP_PIN`.
 ```bash
 cd /home/pi/projects/budget-planner/frontend
 npm ci
-npm run build          # emits dist/
+NODE_OPTIONS="--max-old-space-size=1024" npm run build   # emits dist/
 ```
+
+The backend serves `dist/` itself, so there is nothing to configure here and no separate
+static server — see [Sharing the Pi](#sharing-the-pi). The app calls a relative `/api` on
+whatever origin served it, which is why no API base URL appears in `.env.production`.
+
+The heap cap keeps V8 from sizing itself off total system memory (~2GB on this 4GB Pi)
+for a build that needs a fraction of it. Run this while the dashboard's Chromium kiosk is
+stopped if you can — either overnight, or after `family-dashboard/scripts/stop-kiosk.sh`.
 
 Rebuild after every `git pull` that touches `frontend/`.
 
-### 6. Install the systemd services
+### 6. Install the systemd service
+
+One service, not two: the backend serves both the API and the built frontend.
 
 Create `/etc/systemd/system/budget-backend.service`:
 
 ```ini
 [Unit]
-Description=Family Budget Planner — backend
+Description=Family Budget Planner — backend and UI
 After=network-online.target mnt-usbssd.mount
 Requires=mnt-usbssd.mount
 
@@ -133,44 +175,37 @@ Type=simple
 User=pi
 WorkingDirectory=/home/pi/projects/budget-planner/backend
 EnvironmentFile=/home/pi/projects/budget-planner/.env.production
-ExecStart=/home/pi/projects/budget-planner/backend/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8000
+ExecStart=/home/pi/projects/budget-planner/backend/.venv/bin/uvicorn main:app --host 0.0.0.0 --port 8001
 Restart=on-failure
 RestartSec=5
+# Bound a leak so it can never reach the family dashboard's backend or the kiosk
+# on this shared 4GB Pi. On breach systemd kills this service and Restart brings
+# it back — better than the whole box thrashing.
+MemoryMax=512M
 
 [Install]
 WantedBy=multi-user.target
 ```
 
-Create `/etc/systemd/system/budget-frontend.service` (serves the built `dist/`):
+**Port 8001, not 8000.** The family dashboard sharing this Pi owns 8000; two services
+cannot bind the same port, and the loser would crash-loop under `Restart=on-failure`.
+See [Sharing the Pi](#sharing-the-pi).
 
-```ini
-[Unit]
-Description=Family Budget Planner — frontend
-After=network-online.target
-
-[Service]
-Type=simple
-User=pi
-WorkingDirectory=/home/pi/projects/budget-planner/frontend/dist
-ExecStart=/usr/bin/python3 -m http.server 5173 --bind 0.0.0.0
-Restart=on-failure
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Enable and start both:
+Enable and start it:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now budget-backend budget-frontend
-systemctl status budget-backend budget-frontend --no-pager
-curl -s http://localhost:8000/api/health          # -> {"status":"ok"}
+sudo systemctl enable --now budget-backend
+systemctl status budget-backend --no-pager
+curl -s http://localhost:8001/api/health          # -> {"status":"ok"}
 ```
 
-Open `http://<pi-lan-ip>:5173` from a phone on the same WiFi. If `APP_PIN` is set you
+Open `http://<pi-lan-ip>:8001` from a phone on the same WiFi. If `APP_PIN` is set you
 should see the PIN screen; otherwise the dashboard loads straight away.
+
+> **Upgrading from an earlier setup?** Remove the old static-file service, which no longer
+> exists: `sudo systemctl disable --now budget-frontend && sudo rm
+> /etc/systemd/system/budget-frontend.service && sudo systemctl daemon-reload`.
 
 ### 7. Set up the nightly backup
 
@@ -194,7 +229,6 @@ development). Nothing below is hardcoded in the app.
 |---|---|---|---|
 | `DATABASE_URL` | yes | `./data/budget-dev.db` | SQLite file location. On the Pi this must be on the USB SSD. |
 | `ANTHROPIC_API_KEY` | for Claude | blank | Key for the in-app assistant. Blank means the Claude screen reports the assistant is unavailable. |
-| `API_BASE_URL` | yes | — | Where the frontend reaches the backend. |
 | `APP_PIN` | no | blank | 4-digit access PIN. Blank disables the lock screen. Verified by the backend, never shipped in the frontend bundle. |
 | `BACKUP_REPO_DIR` | for backup | — | Local clone of the private backup repository. |
 | `BACKUP_LOG_FILE` | for backup | blank | Run log the backup writes and the dashboard reads. Blank means backup status is "unknown" and no banner is shown. |
@@ -203,6 +237,52 @@ development). Nothing below is hardcoded in the app.
 
 **Secrets**: `.env.production` is gitignored and never leaves the Pi. The PIN and the API
 key are excluded from everything sent to Claude and from the backup export.
+
+---
+
+## Sharing the Pi
+
+This app shares one Raspberry Pi 5 (4GB) with the **family dashboard**
+(`ryan684/family-dashboard`), a kitchen kiosk display deployed first. They are independent
+deployments sharing one box, one Python interpreter, one Node install and one USB SSD.
+Reconciled 2026-08-17. The dashboard's `hardware.md` holds the full picture; this is what
+matters when working on the budget planner.
+
+| | budget-planner | family-dashboard |
+|---|---|---|
+| Backend port | **8001**, bound `0.0.0.0` | 8000, bound `127.0.0.1` |
+| Frontend | `dist/` served by this backend | `dist/` served by its own backend |
+| Systemd units | `budget-backend`, `budget-backup.{service,timer}` | `family-dashboard`, `family-dashboard-deploy.{service,timer}` |
+| Persistent data | `/mnt/usbssd/budget.db` | none (stateless) |
+| Nightly job | backup, **03:30** | deploy, 02:00 |
+
+**Do not move this app back to port 8000.** Both backends previously bound `0.0.0.0:8000`;
+whichever started second would have failed with "address already in use" and crash-looped
+under `Restart=on-failure`. Dev matches production (`vite.config.ts` proxies to 8001) so
+both apps can also run on a laptop at once.
+
+**Do not move the backup timer earlier.** The dashboard's deploy runs at 02:00 and its
+`npm ci` + `vite build` can take 15–30 minutes on this hardware. 03:30 keeps the two
+nightly jobs clear of each other.
+
+**Memory is the binding constraint.** Steady state is comfortable — roughly 2.5GB free
+with the kiosk up — but transient build spikes are not, which is why:
+
+- the dashboard stops Chromium at 22:00, freeing ~0.5GB across the whole nightly window;
+- `budget-backend` carries `MemoryMax=512M` so a leak here cannot reach the kiosk;
+- frontend builds run with `NODE_OPTIONS=--max-old-space-size=1024`;
+- **mutation testing never runs on the Pi** — see below.
+
+Before adding anything long-running to this Pi, or moving a port or timer, read
+`family-dashboard/hardware.md`, "Sharing the Pi with the budget planner".
+
+### Mutation testing is a development-machine step
+
+`npm run test:mutation` (Stryker) and `mutmut run` are far heavier than anything else in
+this repo — Stryker spawns parallel Vitest workers, mutmut re-runs the whole suite per
+mutant. Either will exhaust 4GB with the kiosk and both backends live, and the OOM killer
+will take out a running service. `scripts/assert-not-pi.sh` guards the npm script and
+should prefix any `mutmut run`; it refuses on Raspberry Pi hardware and explains why.
 
 ---
 
@@ -224,12 +304,17 @@ tailscale status
 ```
 
 Install the Tailscale app on each phone and sign into the same tailnet. The app is then
-reachable off-LAN at `http://<tailscale-ip>:5173`.
+reachable off-LAN at `http://<tailscale-ip>:8001`.
 
-If you set `API_BASE_URL` to the Pi's LAN IP, the frontend will not reach the backend from
-off-LAN. Either use the Tailscale IP in `API_BASE_URL` (and restart `budget-backend`), or
-enable [MagicDNS](https://tailscale.com/kb/1081/magicdns) and use the Pi's tailnet name so
-one address works from both networks.
+Nothing else needs configuring: the backend serves the frontend, and the app calls a
+relative `/api` on whatever origin served it, so the same build works over the LAN and
+over Tailscale with no rebuild. Enable
+[MagicDNS](https://tailscale.com/kb/1081/magicdns) if you would rather use the Pi's
+tailnet name than its IP.
+
+Note that this puts the app on your tailnet with no network-level authentication in front
+of it — `APP_PIN` is the only gate, so set it. The family dashboard sharing this Pi binds
+to `127.0.0.1` precisely because it has no equivalent.
 
 Optionally keep the Pi always connected:
 
@@ -297,7 +382,7 @@ sudo systemctl enable --now budget-backup.timer
 systemctl list-timers budget-backup.timer      # confirm the next run is scheduled
 ```
 
-The timer fires nightly at 02:30 with `Persistent=true`, so a run missed while the Pi was
+The timer fires nightly at 03:30 with `Persistent=true`, so a run missed while the Pi was
 powered off executes on the next boot (FR-001).
 
 ### (c) Verify a backup run
@@ -323,7 +408,7 @@ If the live database is lost or corrupted, restore it from the backup repo alone
 1. Stop the app:
 
    ```bash
-   sudo systemctl stop budget-backend budget-frontend
+   sudo systemctl stop budget-backend
    ```
 
 2. Move the bad database aside (if present):
@@ -341,7 +426,7 @@ If the live database is lost or corrupted, restore it from the backup repo alone
 4. Restart the app:
 
    ```bash
-   sudo systemctl start budget-backend budget-frontend
+   sudo systemctl start budget-backend
    ```
 
 5. **Verify** the app shows the same months, income, bills, accounts, and balances as the
@@ -369,8 +454,8 @@ installed first.
 | # | Check | Pass when |
 |---|---|---|
 | 1 | **Prerequisites** — `findmnt /mnt/usbssd`, `python3.14 --version`, `node --version`, `sqlite3 --version` | SSD mounted and all three runtimes present |
-| 2 | **Config** — `.env.production` holds `DATABASE_URL`, `ANTHROPIC_API_KEY`, `API_BASE_URL`, `APP_PIN`, `BACKUP_REPO_DIR`, `BACKUP_LOG_FILE`, `BACKUP_LOCK_FILE`, `BACKUP_STALE_HOURS` | Every value set; file mode `600` |
-| 3 | **Services** — `systemctl status budget-backend budget-frontend` and open the app from a phone on the LAN | Both active; the app loads over the LAN |
+| 2 | **Config** — `.env.production` holds `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PIN`, `BACKUP_REPO_DIR`, `BACKUP_LOG_FILE`, `BACKUP_LOCK_FILE`, `BACKUP_STALE_HOURS` | Every value set; file mode `600` |
+| 3 | **Service** — `systemctl status budget-backend`, then open `http://<pi-lan-ip>:8001` from a phone on the LAN | Active; the app and its assets load over the LAN, served by the backend itself |
 | 4 | **Screens** — visit Dashboard, Income, Bills, Accounts, Amendments, Months, Claude | Every screen loads against the real database with no errors |
 | 5 | **PIN** — with `APP_PIN` set, reload the app; enter a wrong PIN, then the correct one | Gate shown with no data behind it; wrong PIN rejected; correct PIN unlocks and survives a reload |
 | 6 | **Read-only** — open a previous month, then the current one | The previous month offers no income/bill add/edit/delete; its notes still save; the current month edits fully; accounts edit from either |
@@ -392,9 +477,9 @@ Two processes, no Pi hardware needed. The nightly backup never runs locally.
 
 ```bash
 cd backend
-python3.14 -m venv .venv
+"$PY314" -m venv .venv          # or any Python 3.14 interpreter
 .venv/bin/pip install -e ".[dev]"
-.venv/bin/uvicorn main:app --reload --port 8000
+.venv/bin/uvicorn main:app --reload --port 8001
 ```
 
 **Frontend**
@@ -402,7 +487,7 @@ python3.14 -m venv .venv
 ```bash
 cd frontend
 npm install
-npm run dev        # http://localhost:5173, proxies /api to :8000
+npm run dev        # http://localhost:5173, proxies /api to :8001
 ```
 
 Create `.env.local` in the repo root:
@@ -410,7 +495,6 @@ Create `.env.local` in the repo root:
 ```
 DATABASE_URL=./data/budget-dev.db
 ANTHROPIC_API_KEY=sk-...
-API_BASE_URL=http://localhost:8000
 APP_PIN=                 # blank disables the PIN gate in dev
 ```
 

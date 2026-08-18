@@ -450,3 +450,40 @@ exit behaviour (which is asserted as exit code 1).
 
 **Total Phase 4 backup.py survivors: 31** — all equivalent/cosmetic per the groups above.
 No surviving mutant represents a genuine, unkilled behavioural gap in the backup logic.
+
+---
+
+# Shared-Pi deployment (2026-08-17) — `mount_frontend`
+
+**No mutation run was performed for this change, and none is outstanding.**
+
+`mount_frontend` lives in `backend/main.py`, which is deliberately **not** in
+`paths_to_mutate` (`backend/pyproject.toml`). That scoping is unchanged and its stated
+rationale still holds: mutation is aimed at the core logic modules — calculations,
+carry-forward, amendment logging — "not routers, schemas, or boilerplate". `main.py` is
+application wiring: router includes, a liveness endpoint, and now a static mount.
+
+Running `mutmut run` after this change therefore produces exactly the result recorded
+above for Phase 5 — the mutated set did not change.
+
+**Why `main.py` was not added to the mutated set.** It was considered. `mount_frontend`
+does have two real branches, and adding the module would generate killable mutants for
+them (`is_file()` negation, the `"index.html"` literal, the `True`/`False` returns — all
+covered by `backend/tests/test_static_ui.py`). But it would also pull in the router
+includes and the `FastAPI(...)` construction, generating trivial or equivalent mutants for
+lines that have no logic to get wrong, which is the noise the existing scoping exists to
+avoid. The branch coverage is instead asserted directly:
+
+| Branch | Test |
+|---|---|
+| `dist/` present, mount registered | `test_serves_index_html_at_the_root`, `test_reports_that_it_mounted` |
+| `dist/` absent (development) | `test_does_not_mount_when_dist_is_missing` |
+| `dist/` present but no `index.html` | `test_does_not_mount_a_dist_without_index_html` |
+| Mount does not shadow the API | `test_api_routes_are_not_shadowed_by_the_frontend` |
+| `DIST_DIR` resolves to `frontend/dist` | `test_real_app_points_at_the_frontend_build_directory` |
+
+Revisit if `main.py` ever grows real decision logic.
+
+**Note for whoever runs mutation testing next:** it must not run on the Raspberry Pi (4GB,
+shared with the family dashboard). `scripts/assert-not-pi.sh` now guards
+`npm run test:mutation` and should prefix `mutmut run`. See CLAUDE.md, build order.

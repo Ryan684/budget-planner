@@ -7,7 +7,7 @@ end-to-end checklist** (FR-018, operator-run on real hardware).
 
 ## Part A — Local validation (dev machine)
 
-Backend: `cd backend && uvicorn main:app --reload --port 8000`
+Backend: `cd backend && uvicorn main:app --reload --port 8001`
 Frontend: `cd frontend && npm run dev`
 
 ### A1. PIN gate (US1)
@@ -67,9 +67,12 @@ accessible deployment. Requires Phase 4 to be deployed (backup timer). Record co
 
 1. **Prerequisites** — USB SSD mounted at `/mnt/usbssd`; Python 3.14, Node, SQLite installed per
    README. DB path `DATABASE_URL=/mnt/usbssd/budget.db`.
-2. **Config** — `.env.production` set: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `API_BASE_URL`,
-   `APP_PIN`, `BACKUP_REPO_DIR`, `BACKUP_LOG_FILE`, `BACKUP_LOCK_FILE`, `BACKUP_STALE_HOURS`.
-3. **Services** — `budget-backend` + `budget-frontend` systemd services start; app reachable on the
+2. **Config** — `.env.production` set: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PIN`,
+   `BACKUP_REPO_DIR`, `BACKUP_LOG_FILE`, `BACKUP_LOCK_FILE`, `BACKUP_STALE_HOURS`.
+   (`API_BASE_URL` was removed on 2026-08-17 — the backend serves the frontend, so the app
+   calls a relative `/api` on the origin that served it.)
+3. **Service** — the `budget-backend` systemd service starts (it serves both the API and the built
+   frontend on port 8001; `budget-frontend` no longer exists); app reachable on the
    LAN IP from a phone browser.
 4. **Screens** — Dashboard, Income, Bills, Accounts, Amendments, Month Management, Claude all load
    against the real DB.

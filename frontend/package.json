@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:mutation": "stryker run"
+    "test:mutation": "../scripts/assert-not-pi.sh && stryker run"
   },
   "dependencies": {
     "react": "^19.2.6",
