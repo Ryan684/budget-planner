@@ -30,19 +30,26 @@ This is the only part of the feature that runs off-Pi. Do **not** run `scripts/b
 
 ## 2. Operator — one-time Pi setup
 
-Prerequisites (Phase 0): USB SSD mounted; private backup repo created on GitHub; SSH key on the Pi
-authorised against it.
+Prerequisites (Phase 0): the data directory `/home/pi/budget-data` created; private backup repo
+created on GitHub; SSH key on the Pi authorised against it.
+
+> **Paths and schedule updated 2026-08-19.** The database moved from a USB SSD to the Pi's SD
+> card and the timer from nightly to 6-hourly — see the README, "Create the data directory".
+> The sibling `plan.md` and `data-model.md` in this directory are Phase 4 design records and
+> still show the old `/mnt/usbssd` paths; this quickstart is the one that gets executed.
+> With the database on the SD card, the offsite backup is the only thing bounding data loss,
+> so **§3 and §4 below are load-bearing gates, not formalities.**
 
 1. **Clone the backup repo** onto the Pi (separate from the app source — FR-006):
    ```bash
-   git clone git@github.com:<you>/budget-backup.git /mnt/usbssd/budget-backup
+   git clone git@github.com:<you>/budget-backup.git /home/pi/budget-data/budget-backup
    ```
    Add a `.gitignore` that ignores everything except `budget.db`, `budget-export.json`, `README.md`.
 
 2. **Set environment** in `.env.production`:
    ```
-   DATABASE_URL=/mnt/usbssd/budget.db
-   BACKUP_REPO_DIR=/mnt/usbssd/budget-backup
+   DATABASE_URL=/home/pi/budget-data/budget.db
+   BACKUP_REPO_DIR=/home/pi/budget-data/budget-backup
    BACKUP_LOG_FILE=/var/log/budget-backup.log
    BACKUP_LOCK_FILE=/run/budget-backup.lock
    ```
@@ -78,13 +85,13 @@ confirm the log records `FAILED: ...`, the service exits non-zero, and the previ
 
 Simulate loss and restore from the backup alone:
 
-1. Stop the app: `sudo systemctl stop budget-backend budget-frontend`.
-2. Move the live DB aside: `mv /mnt/usbssd/budget.db /mnt/usbssd/budget.db.lost`.
+1. Stop the app: `sudo systemctl stop budget-backend`.
+2. Move the live DB aside: `mv /home/pi/budget-data/budget.db /home/pi/budget-data/budget.db.lost`.
 3. Restore from the backup repo:
    ```bash
-   cp /mnt/usbssd/budget-backup/budget.db /mnt/usbssd/budget.db
+   cp /home/pi/budget-data/budget-backup/budget.db /home/pi/budget-data/budget.db
    ```
-4. Restart: `sudo systemctl start budget-backend budget-frontend`.
+4. Restart: `sudo systemctl start budget-backend`.
 5. **Verify** the app shows the same months, income, bills, accounts, and balances as the last
    backup (SC-003).
 
@@ -99,7 +106,7 @@ Record completion of this test in `docs/progress-log.md`.
 
 | Spec item | Verified by |
 |---|---|
-| FR-001 nightly + catch-up | §2 timer (`Persistent=true`), `list-timers` |
+| FR-001 scheduled + catch-up | §2 timer (`Persistent=true`), `list-timers` |
 | FR-002 consistent copy | unit test (online backup round-trip) |
 | FR-003 stable filename | §3 commit shows same `budget.db` path; history = versions |
 | FR-004 full-history JSON | §3 inspect export; unit test on envelope/body |

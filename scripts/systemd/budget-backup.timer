@@ -1,9 +1,23 @@
 [Unit]
-Description=Nightly budget database backup timer (triggers budget-backup.service)
+Description=Scheduled budget database backup timer (triggers budget-backup.service)
 
 [Timer]
-# Run nightly at 02:30 local time (low-activity hours).
-OnCalendar=*-*-* 02:30:00
+# Every six hours, at 03:30 / 09:30 / 15:30 / 21:30 local time.
+#
+# Six-hourly, not nightly: the database lives on the Pi's SD card, not a USB SSD
+# (decided 2026-08-19). This offsite backup — not the storage medium — is what
+# bounds data loss, so the interval is the loss window. Six hours instead of
+# twenty-four costs effectively nothing: backup.sh exits SUCCESS without creating
+# a commit when nothing has changed, so runs on quiet days are no-ops.
+#
+# The :30 offset and these particular hours keep every run clear of 02:00, when
+# the family dashboard sharing this Pi runs its deploy — `npm ci` + `vite build`
+# there can occupy a 4GB Pi 5 for 15-30 minutes. Do not move a run into that
+# window without moving the deploy timer too.
+#
+# BACKUP_STALE_HOURS should stay consistent with this interval: at 12 hours, the
+# dashboard's staleness banner fires after two consecutive missed runs.
+OnCalendar=*-*-* 03,09,15,21:30:00
 # Catch-up: if the Pi was powered off at the scheduled time, run the missed job on
 # the next boot rather than skipping until the following night (FR-001). Do not remove.
 Persistent=true

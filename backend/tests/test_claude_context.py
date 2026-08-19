@@ -130,14 +130,14 @@ def test_context_snapshot_fields(client, db_session):
 def test_context_excludes_secrets(db_session, monkeypatch):
     monkeypatch.setattr(settings, "anthropic_api_key", "sk-ant-SECRET-value")
     monkeypatch.setattr(settings, "app_pin", "4321")
-    monkeypatch.setattr(settings, "database_url", "/mnt/usbssd/budget.db")
+    monkeypatch.setattr(settings, "database_url", "/home/pi/budget-data/budget.db")
     make_month(db_session, month=CURRENT_MONTH)
     make_account(db_session, label="Savings", balance=8400.0)
 
     serialized = json.dumps(claude_context.build_budget_context(db_session))
     assert "sk-ant-SECRET-value" not in serialized
     assert "4321" not in serialized
-    assert "/mnt/usbssd/budget.db" not in serialized
+    assert "/home/pi/budget-data/budget.db" not in serialized
     # only the expected top-level keys are present
     ctx = claude_context.build_budget_context(db_session)
     assert set(ctx) == {"current_month_id", "months", "accounts", "balance_snapshots", "amendments"}

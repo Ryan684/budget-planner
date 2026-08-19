@@ -34,11 +34,11 @@ truth and each feature's `specs/NNN-*/plan.md` + `tasks.md` hold its detailed en
 ### Stack
 - **Backend:** FastAPI (Python)
 - **Frontend:** React + Vite
-- **Database:** SQLite — file on USB SSD in production, local file in development
+- **Database:** SQLite — file on the Pi's SD card (`/home/pi/budget-data/`) in production, local file in development
 - **AI:** Anthropic API (`claude-sonnet-4-6`)
 - **Hosting:** Raspberry Pi 5 (production), localhost (development)
 - **Remote access:** Tailscale (infrastructure only, outside app scope)
-- **Backup:** Nightly systemd timer (with catch-up) → private GitHub repo via SSH
+- **Backup:** 6-hourly systemd timer (with catch-up) → private GitHub repo via SSH
 
 ### Project Structure
 ```
@@ -71,7 +71,7 @@ budget-planner/
 │   ├── vite.config.ts
 │   └── package.json
 ├── scripts/
-│   └── backup.sh            # Nightly backup script (run by a systemd timer)
+│   └── backup.sh            # Backup script (run by a 6-hourly systemd timer)
 ├── docs/
 │   ├── budget-planner-spec.md
 │   ├── budget-planner.feature
@@ -91,19 +91,20 @@ All environment-specific values are set via `.env` files. Never hardcode these.
 ```
 DATABASE_URL=./data/budget-dev.db
 ANTHROPIC_API_KEY=sk-...
-API_BASE_URL=http://localhost:8000
 APP_PIN=                     # Leave blank to disable PIN in dev
 ```
 
 ### `.env.production` (Pi)
 ```
-DATABASE_URL=/mnt/usbssd/budget.db
+DATABASE_URL=/home/pi/budget-data/budget.db
 ANTHROPIC_API_KEY=sk-...
-API_BASE_URL=http://192.168.x.x:8000
 APP_PIN=                     # Optional 4-digit PIN
 ```
 
-Vite uses `VITE_` prefix for frontend env vars. The backend reads vars directly via `python-dotenv`.
+There is deliberately **no API base URL setting**. The backend serves the built frontend
+(`mount_frontend` in `backend/main.py`), so the app calls a relative `/api` on whatever
+origin served it — one build works over the LAN and over Tailscale alike. Vite uses the
+`VITE_` prefix for any frontend env var; the backend reads vars via pydantic-settings.
 
 ---
 
@@ -116,7 +117,7 @@ Two terminal processes:
 **Backend:**
 ```bash
 cd backend
-uvicorn main:app --reload --port 8000
+uvicorn main:app --reload --port 8001
 ```
 
 **Frontend:**
@@ -125,45 +126,62 @@ cd frontend
 npm run dev
 ```
 
-Frontend runs on `http://localhost:5173`. Vite proxies `/api` requests to `http://localhost:8000` — configure this in `vite.config.ts`:
+Frontend runs on `http://localhost:5173`. Vite proxies `/api` requests to `http://localhost:8001` — configured in `vite.config.ts`:
 
 ```ts
 server: {
   proxy: {
-    '/api': 'http://localhost:8000'
+    '/api': 'http://localhost:8001'
   }
 }
 ```
 
 This avoids CORS issues in development without any special backend config.
 
+Port 8001, not 8000: the Pi is shared with the family dashboard, which owns 8000. Dev
+matches production so both apps can run side by side — see "Shared Raspberry Pi" below.
+
 ### Local database
 SQLite file lives at `./data/budget-dev.db` in development. This directory is gitignored. Do not commit the database file.
 
 ### Backup script
-The nightly backup systemd timer is Pi-only. Do not run or test `scripts/backup.sh` in local development.
+The backup systemd timer is Pi-only. Do not run or test `scripts/backup.sh` in local development.
 
 ---
 
 ## Deployment (Raspberry Pi 5)
 
 ### Services
-Both backend and frontend run as systemd services on the Pi. Process management is via systemd, not Docker.
+**One** systemd service, `budget-backend`, serving both the API and the built frontend on
+port 8001. Process management is via systemd, not Docker. There is no separate frontend
+service — the Pi is shared with the family dashboard and a second static-file process
+would be one more port, one more unit and one more thing holding memory.
 
 ### Frontend build
 ```bash
 cd frontend
-npm run build
+NODE_OPTIONS="--max-old-space-size=1024" npm run build
 ```
-Serve the `dist/` directory via a lightweight static server or directly via FastAPI's `StaticFiles`.
+`backend/main.py` mounts the resulting `dist/` via `StaticFiles` (see `mount_frontend`).
+The mount is registered after every router, because a mount at `/` is greedy for any
+unmatched path. If `dist/` does not exist — the normal case in development, where Vite
+serves the frontend — nothing is mounted and the API serves alone.
 
 ### Database location
-SQLite file on USB SSD mounted at `/mnt/usbssd/`. Never store the database on the Pi's SD card.
+SQLite file at `/home/pi/budget-data/budget.db` on the Pi's SD card — outside the source
+tree so `git` can never touch it.
 
-### Starting services
+This was a USB SSD until 2026-08-19, on the stated grounds that "SD wear-out is the most
+likely way to lose the data". That did not hold: this app writes single-digit MB a month
+against SD endurance measured in terabytes. The genuine risks are power-loss corruption
+and card death, and both take the whole system rather than just the database. What bounds
+the damage is the offsite backup, not the storage medium — so the backup interval was
+tightened to 6-hourly and **its Pi-only end-to-end and recovery gates are load-bearing,
+not optional**. Full reasoning in the README, "Create the data directory".
+
+### Starting the service
 ```bash
 sudo systemctl start budget-backend
-sudo systemctl start budget-frontend
 ```
 
 ---
@@ -306,10 +324,22 @@ The Gherkin scenarios in `docs/budget-planner.feature` are the source of truth f
 1. MUST write Gherkin feature file first, before any code
 2. MUST write failing tests before implementation
 3. MUST write minimum code to pass tests — nothing more
-4. MUST run mutation tests after implementation; MUST NOT leave surviving mutants without documented justification
+4. MUST run mutation tests after implementation; MUST NOT leave surviving mutants without documented justification. **Never on the Pi** — see below
 5. MUST run linters (`ruff check .` for backend, `npm run lint && npx tsc --noEmit` for frontend) and fix all errors before proceeding
 6. MUST confirm all tests pass before committing
 7. MUST update `MUTANTS.md` for any surviving mutants that will not be addressed — record the mutant ID, what was mutated, and why it is acceptable
+
+### MUST NOT run mutation tests on the Raspberry Pi
+
+Step 4 is a **development-machine** step. The Pi is a 4GB Pi 5 shared with the family
+dashboard, running two backends and a Chromium kiosk. mutmut re-runs the whole suite per
+mutant and Stryker spawns parallel Vitest workers; either will exhaust memory and take the
+OOM killer to a live service.
+
+If you are running on the Pi: do steps 1–3 and 5–7, commit, and run mutation tests later on
+a laptop. Do not treat step 4 as blocking, and do not work around
+`scripts/assert-not-pi.sh`, which guards `npm run test:mutation` and should prefix any
+`mutmut run`.
 
 ---
 
@@ -355,12 +385,21 @@ This is not optional. A session without a progress log update is incomplete.
 
 ## Python Packaging
 
-Use `pyproject.toml` for all Python dependency and tool configuration — no `requirements.txt`. Runtime deps under `[project.dependencies]`, dev/test deps under `[project.optional-dependencies] dev`. Ruff, pytest, mutmut, and httpx all go in the `dev` optional group.
+Use `pyproject.toml` for all Python dependency and tool configuration. Runtime deps under `[project.dependencies]`, dev/test deps under `[project.optional-dependencies] dev`. Ruff, pytest, mutmut, and httpx all go in the `dev` optional group. Declare **floors** here, not exact pins.
 
 Install for development:
 ```bash
 pip install -e ".[dev]"
 ```
+
+`backend/requirements.lock` holds the exact resolved **runtime** versions and is what the Pi installs from, so a deploy gets what was tested rather than whatever PyPI resolves that night. It is generated, never hand-edited — regenerate it whenever `pyproject.toml` dependencies change:
+
+```bash
+cd backend
+uv pip compile pyproject.toml --universal --python-version 3.14 -o requirements.lock
+```
+
+This is not a `requirements.txt` in the sense the rule above forbids: `pyproject.toml` remains the source of truth for what this project depends on, and the lock is its compiled output. Same pattern as `family-dashboard/backend/requirements.lock`.
 
 ---
 
@@ -419,8 +458,28 @@ Use the `/end-session` slash command at the end of each Claude Code session. Thi
 - **No persistent Claude chat history** — conversation resets per session
 - **Claude does not write to previous months** — enforced in system prompt and backend
 - **SQLite only** — no migrations framework needed at this scale; schema changes handled manually with documented migration steps
-- **Google Drive backup skipped in MVP** — nightly GitHub backup is the sole offsite copy; revisit post-MVP
+- **Google Drive backup skipped in MVP** — the 6-hourly GitHub backup is the sole offsite copy; revisit post-MVP
 - **Tailscale is an infrastructure prerequisite** — not configured or managed by the app
+
+---
+
+## Shared Raspberry Pi
+
+This app shares a 4GB Pi 5 with the **family dashboard** (`ryan684/family-dashboard`),
+which was deployed first. Full detail in that repo's `hardware.md`, "Sharing the Pi with
+the budget planner", and in this repo's README under "Sharing the Pi". What matters here:
+
+- **Port 8001 belongs to this app** (dev and production); the dashboard owns 8000. Both
+  previously bound `0.0.0.0:8000` — the loser would have crash-looped. Never move back.
+- **The backup timer runs 6-hourly** at 03:30 / 09:30 / 15:30 / 21:30; the dashboard's
+  deploy is 02:00 and its build can run 15–30 minutes. Don't move a run into that window.
+- **Python 3.14 and Node 22 are shared installs** — one interpreter, one Node, a separate
+  `backend/.venv` and `frontend/node_modules` per app. The two apps' dependency *sets*
+  differ deliberately (this repo is on React 19 and ESLint 10, the dashboard on 18 and 9);
+  don't try to align them. Only the binaries are shared.
+- **Memory is the binding constraint.** Don't add long-running processes to the Pi. Build
+  the frontend with `NODE_OPTIONS=--max-old-space-size=1024`.
+- **Never run mutation tests on the Pi** — see the build order above.
 
 <!-- SPECKIT START -->
 For additional context about technologies to be used, project structure,

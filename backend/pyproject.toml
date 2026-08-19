@@ -3,24 +3,34 @@ name = "budget-planner-backend"
 version = "0.1.0"
 description = "Family Budget Planner — FastAPI backend (Phase 1 data layer)"
 requires-python = ">=3.14"
+# Floors, not exact pins — the exact tested versions live in requirements.lock,
+# which is what the Pi installs from (runtime deps only; dev tooling is installed
+# from the dev extra on development machines). Regenerate the lock after changing
+# anything below:
+#   uv pip compile pyproject.toml --universal --python-version 3.14 -o requirements.lock
 dependencies = [
-    "fastapi",
-    "uvicorn[standard]",
+    "fastapi>=0.140.7",
+    # Pinned explicitly rather than left to fastapi, which only asks for
+    # starlette>=0.46.0 — a range that still admits every version affected by
+    # CVE-2026-48710 (host-header auth bypass, fixed in 1.0.1). Matches the floor
+    # family-dashboard sets for the same reason.
+    "starlette>=1.0.1",
+    "uvicorn[standard]>=0.51.0",
     "sqlalchemy>=2",
     "pydantic>=2",
-    "pydantic-settings",
-    "python-dotenv",
-    "anthropic",
+    "pydantic-settings>=2.7.0",
+    "python-dotenv>=1.2.2",
+    "anthropic>=0.40.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest",
-    "httpx",
+    "pytest>=9.1.1",
+    "httpx>=0.28.1",
     # Pinned: 3.6.0 cannot import unmutated modules from its copied source tree,
     # and MUTANTS.md records results from this version.
     "mutmut==3.5.0",
-    "ruff",
+    "ruff>=0.16.0",
 ]
 
 [build-system]
