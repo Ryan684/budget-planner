@@ -19,18 +19,19 @@ for the full specification.
 ## Fresh-Pi setup
 
 Follow this section in order on a bare Raspberry Pi 5 and you will end with the app
-running under systemd, its data on the USB SSD, nightly offsite backups, an optional PIN
-lock, and remote access over Tailscale. Nothing here assumes knowledge from outside this
-README.
+running under systemd, offsite backups every six hours, an optional PIN lock, and remote
+access over Tailscale. No storage hardware beyond the Pi's own SD card is required —
+see step 2. Nothing here assumes knowledge from outside this README.
 
 Throughout, the source repo is assumed to live at `/home/pi/projects/budget-planner` and
-the USB SSD to be mounted at `/mnt/usbssd`. Adjust paths if your deployment differs.
+its data (database + backup clone) in `/home/pi/budget-data`. Adjust paths if your
+deployment differs.
 
 > **This Pi is shared with the family dashboard** (`ryan684/family-dashboard`), which was
 > deployed first and owns port 8000, the Chromium kiosk, and the 02:00 nightly deploy
-> timer. If that app is already set up, Python 3.14 and Node 22 exist and steps 1 and 2
-> are already done — skip to step 3. See [Sharing the Pi](#sharing-the-pi) before
-> changing any port, timer, or systemd unit.
+> timer. If that app is already set up, Python 3.14 and Node 22 already exist, so step 1
+> is done — start at step 2. See [Sharing the Pi](#sharing-the-pi) before changing any
+> port, timer, or systemd unit.
 
 ### 1. Runtime prerequisites
 
@@ -66,29 +67,39 @@ sudo apt install -y nodejs
 node --version   # v22.x
 ```
 
-### 2. Mount the USB SSD
+### 2. Create the data directory
 
-The database must never live on the SD card — SD wear-out is the most likely way to lose
-the data.
-
-```bash
-lsblk                                   # identify the SSD, e.g. /dev/sda1
-sudo blkid /dev/sda1                    # note its UUID
-sudo mkdir -p /mnt/usbssd
-```
-
-Add a line to `/etc/fstab` so it mounts on every boot (replace the UUID and, if not ext4,
-the filesystem type):
-
-```
-UUID=<uuid>  /mnt/usbssd  ext4  defaults,noatime,nofail  0  2
-```
+The database and the local backup-repo clone live on the Pi's SD card, in a directory
+outside the source tree so that nothing in `git` can touch them:
 
 ```bash
-sudo mount -a
-sudo chown -R pi:pi /mnt/usbssd
-findmnt /mnt/usbssd                     # confirm it is mounted
+mkdir -p /home/pi/budget-data
 ```
+
+That's it — no extra hardware.
+
+**Why the SD card is acceptable here** (revised 2026-08-19; earlier revisions of this
+README required a USB SSD and said "SD wear-out is the most likely way to lose the data"):
+
+- **Wear is not the risk.** This app writes single-digit MB a month — a few dozen bills
+  and income rows, occasional edits, an append-only amendments log. SD endurance is
+  measured in terabytes written. That is several orders of magnitude of headroom.
+- **The real risks are power-loss corruption and outright card death**, and both take the
+  whole system with them, not just the database. An SSD would reduce the chance of losing
+  the *data*, but you would still be reflashing and redeploying.
+- **The offsite backup is what bounds the damage**, and it exists: see
+  [Backup & Recovery](#backup--recovery). It runs every six hours, pushes to a private
+  GitHub repository, and has a documented, tested recovery procedure. Worst case is
+  losing the changes made since the last successful run.
+
+The trade this makes: **the backup is now load-bearing, not a safety net.** Its Pi-only
+end-to-end and recovery gates are not optional — run them before relying on this
+deployment, and take the dashboard's staleness banner seriously when it appears.
+
+If you would rather reduce the probability as well as bound the impact, an old SSD in a
+USB caddy still works — set `DATABASE_URL` and `BACKUP_REPO_DIR` to a path on it and
+everything below is unchanged. A small UPS addresses the power-loss failure mode more
+directly than an SSD does.
 
 ### 3. Get the source and install the backend
 
@@ -118,19 +129,20 @@ Create `/home/pi/projects/budget-planner/.env.production`. It is **gitignored** 
 your API key and PIN, so never commit it.
 
 ```
-DATABASE_URL=/mnt/usbssd/budget.db
+DATABASE_URL=/home/pi/budget-data/budget.db
 ANTHROPIC_API_KEY=sk-...
 
 # Optional 4-digit access PIN. Blank disables the lock screen entirely.
 APP_PIN=1234
 
-# Nightly backup (see Backup & Recovery below)
-BACKUP_REPO_DIR=/mnt/usbssd/budget-backup
+# Scheduled backup (see Backup & Recovery below)
+BACKUP_REPO_DIR=/home/pi/budget-data/budget-backup
 BACKUP_LOG_FILE=/var/log/budget-backup.log
 BACKUP_LOCK_FILE=/run/budget-backup.lock
 
 # Hours before a successful backup is considered stale and the dashboard warns.
-BACKUP_STALE_HOURS=36
+# 12 = two missed runs of the 6-hourly timer, plus margin.
+BACKUP_STALE_HOURS=12
 ```
 
 ```bash
@@ -167,8 +179,7 @@ Create `/etc/systemd/system/budget-backend.service`:
 ```ini
 [Unit]
 Description=Family Budget Planner — backend and UI
-After=network-online.target mnt-usbssd.mount
-Requires=mnt-usbssd.mount
+After=network-online.target
 
 [Service]
 Type=simple
@@ -207,7 +218,7 @@ should see the PIN screen; otherwise the dashboard loads straight away.
 > exists: `sudo systemctl disable --now budget-frontend && sudo rm
 > /etc/systemd/system/budget-frontend.service && sudo systemctl daemon-reload`.
 
-### 7. Set up the nightly backup
+### 7. Set up the scheduled backup
 
 Follow [Backup & Recovery](#backup--recovery) below — the private backup repo, its SSH
 key, and the systemd timer. The dashboard reads `BACKUP_LOG_FILE` and warns when the last
@@ -227,13 +238,13 @@ development). Nothing below is hardcoded in the app.
 
 | Variable | Required | Default | Purpose |
 |---|---|---|---|
-| `DATABASE_URL` | yes | `./data/budget-dev.db` | SQLite file location. On the Pi this must be on the USB SSD. |
+| `DATABASE_URL` | yes | `./data/budget-dev.db` | SQLite file location. On the Pi, `/home/pi/budget-data/budget.db`. |
 | `ANTHROPIC_API_KEY` | for Claude | blank | Key for the in-app assistant. Blank means the Claude screen reports the assistant is unavailable. |
 | `APP_PIN` | no | blank | 4-digit access PIN. Blank disables the lock screen. Verified by the backend, never shipped in the frontend bundle. |
 | `BACKUP_REPO_DIR` | for backup | — | Local clone of the private backup repository. |
 | `BACKUP_LOG_FILE` | for backup | blank | Run log the backup writes and the dashboard reads. Blank means backup status is "unknown" and no banner is shown. |
 | `BACKUP_LOCK_FILE` | for backup | — | Single-instance lock for the backup run. |
-| `BACKUP_STALE_HOURS` | no | `36` | Age at which a successful backup is treated as stale and the dashboard warns. 36h = one missed nightly run plus margin. |
+| `BACKUP_STALE_HOURS` | no | `12` | Age at which a successful backup is treated as stale and the dashboard warns. 12h = two missed runs of the 6-hourly timer plus margin. |
 
 **Secrets**: `.env.production` is gitignored and never leaves the Pi. The PIN and the API
 key are excluded from everything sent to Claude and from the backup export.
@@ -244,7 +255,7 @@ key are excluded from everything sent to Claude and from the backup export.
 
 This app shares one Raspberry Pi 5 (4GB) with the **family dashboard**
 (`ryan684/family-dashboard`), a kitchen kiosk display deployed first. They are independent
-deployments sharing one box, one Python interpreter, one Node install and one USB SSD.
+deployments sharing one box, one Python interpreter and one Node install.
 Reconciled 2026-08-17. The dashboard's `hardware.md` holds the full picture; this is what
 matters when working on the budget planner.
 
@@ -253,22 +264,22 @@ matters when working on the budget planner.
 | Backend port | **8001**, bound `0.0.0.0` | 8000, bound `127.0.0.1` |
 | Frontend | `dist/` served by this backend | `dist/` served by its own backend |
 | Systemd units | `budget-backend`, `budget-backup.{service,timer}` | `family-dashboard`, `family-dashboard-deploy.{service,timer}` |
-| Persistent data | `/mnt/usbssd/budget.db` | none (stateless) |
-| Nightly job | backup, **03:30** | deploy, 02:00 |
+| Persistent data | `/home/pi/budget-data/` (SD card) | none (stateless) |
+| Scheduled job | backup, **03:30 / 09:30 / 15:30 / 21:30** | deploy, 02:00 |
 
 **Do not move this app back to port 8000.** Both backends previously bound `0.0.0.0:8000`;
 whichever started second would have failed with "address already in use" and crash-looped
 under `Restart=on-failure`. Dev matches production (`vite.config.ts` proxies to 8001) so
 both apps can also run on a laptop at once.
 
-**Do not move the backup timer earlier.** The dashboard's deploy runs at 02:00 and its
-`npm ci` + `vite build` can take 15–30 minutes on this hardware. 03:30 keeps the two
-nightly jobs clear of each other.
+**Do not move a backup run into 02:00–03:00.** The dashboard's deploy runs at 02:00 and
+its `npm ci` + `vite build` can take 15–30 minutes on this hardware. The 6-hourly backup
+schedule (03:30 / 09:30 / 15:30 / 21:30) is chosen to stay clear of it.
 
 **Memory is the binding constraint.** Steady state is comfortable — roughly 2.5GB free
 with the kiosk up — but transient build spikes are not, which is why:
 
-- the dashboard stops Chromium at 22:00, freeing ~0.5GB across the whole nightly window;
+- the dashboard stops Chromium at 22:00, freeing ~0.5GB across the whole overnight window;
 - `budget-backend` carries `MemoryMax=512M` so a leak here cannot reach the kiosk;
 - frontend builds run with `NODE_OPTIONS=--max-old-space-size=1024`;
 - **mutation testing never runs on the Pi** — see below.
@@ -327,7 +338,7 @@ sudo systemctl enable tailscaled
 
 ## Backup & Recovery
 
-The Pi takes an unattended **nightly offsite backup** of the SQLite database to a
+The Pi takes an unattended **offsite backup every six hours** of the SQLite database to a
 **private** GitHub repository, plus a human-readable JSON export, and keeps a local run
 log. The binary `.db` copy is the restore path; the JSON export is a standalone fallback
 if the binary is ever unreadable.
@@ -336,18 +347,18 @@ if the binary is ever unreadable.
 > it pushes to the offsite repository.
 
 The examples below assume the app source repo is at `/home/pi/projects/budget-planner`
-and the database is on the USB SSD. Adjust paths if your deployment differs.
+and the database in `/home/pi/budget-data`. Adjust paths if your deployment differs.
 
 ### (a) One-time Pi setup
 
-**Prerequisites (Phase 0):** USB SSD mounted; the private backup repo created on GitHub;
+**Prerequisites (Phase 0):** the data directory created (step 2); the private backup repo created on GitHub;
 an SSH key on the Pi authorised against it.
 
 1. **Clone the backup repository** onto the Pi — it must be **separate** from this source
    repo (FR-006):
 
    ```bash
-   git clone git@github.com:<you>/budget-backup.git /mnt/usbssd/budget-backup
+   git clone git@github.com:<you>/budget-backup.git /home/pi/budget-data/budget-backup
    ```
 
 2. **Install the backup repo's `.gitignore`** so only the two artifacts can ever be
@@ -355,14 +366,14 @@ an SSH key on the Pi authorised against it.
 
    ```bash
    cp /home/pi/projects/budget-planner/scripts/backup-repo.gitignore \
-      /mnt/usbssd/budget-backup/.gitignore
+      /home/pi/budget-data/budget-backup/.gitignore
    ```
 
 3. **Set the backup environment** in `/home/pi/projects/budget-planner/.env.production`:
 
    ```
-   DATABASE_URL=/mnt/usbssd/budget.db
-   BACKUP_REPO_DIR=/mnt/usbssd/budget-backup
+   DATABASE_URL=/home/pi/budget-data/budget.db
+   BACKUP_REPO_DIR=/home/pi/budget-data/budget-backup
    BACKUP_LOG_FILE=/var/log/budget-backup.log
    BACKUP_LOCK_FILE=/run/budget-backup.lock
    BACKUP_STALE_HOURS=36
@@ -382,7 +393,7 @@ sudo systemctl enable --now budget-backup.timer
 systemctl list-timers budget-backup.timer      # confirm the next run is scheduled
 ```
 
-The timer fires nightly at 03:30 with `Persistent=true`, so a run missed while the Pi was
+The timer fires every six hours (03:30 / 09:30 / 15:30 / 21:30) with `Persistent=true`, so a run missed while the Pi was
 powered off executes on the next boot (FR-001).
 
 ### (c) Verify a backup run
@@ -414,13 +425,13 @@ If the live database is lost or corrupted, restore it from the backup repo alone
 2. Move the bad database aside (if present):
 
    ```bash
-   mv /mnt/usbssd/budget.db /mnt/usbssd/budget.db.lost   # skip if already gone
+   mv /home/pi/budget-data/budget.db /home/pi/budget-data/budget.db.lost   # skip if already gone
    ```
 
 3. Restore the database file from the backup repo:
 
    ```bash
-   cp /mnt/usbssd/budget-backup/budget.db /mnt/usbssd/budget.db
+   cp /home/pi/budget-data/budget-backup/budget.db /home/pi/budget-data/budget.db
    ```
 
 4. Restart the app:
@@ -448,12 +459,12 @@ operator-run acceptance gate for the deployment — the same checklist as
 `specs/005-polish-hardening/quickstart.md` Part B. Record completion in
 `docs/progress-log.md`.
 
-Requires the nightly backup timer from [Backup & Recovery](#backup--recovery) to be
+Requires the backup timer from [Backup & Recovery](#backup--recovery) to be
 installed first.
 
 | # | Check | Pass when |
 |---|---|---|
-| 1 | **Prerequisites** — `findmnt /mnt/usbssd`, `python3.14 --version`, `node --version`, `sqlite3 --version` | SSD mounted and all three runtimes present |
+| 1 | **Prerequisites** — `ls -ld /home/pi/budget-data`, `python3.14 --version`, `node --version`, `sqlite3 --version` | Data directory present and writable by `pi`; all three runtimes present |
 | 2 | **Config** — `.env.production` holds `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PIN`, `BACKUP_REPO_DIR`, `BACKUP_LOG_FILE`, `BACKUP_LOCK_FILE`, `BACKUP_STALE_HOURS` | Every value set; file mode `600` |
 | 3 | **Service** — `systemctl status budget-backend`, then open `http://<pi-lan-ip>:8001` from a phone on the LAN | Active; the app and its assets load over the LAN, served by the backend itself |
 | 4 | **Screens** — visit Dashboard, Income, Bills, Accounts, Amendments, Months, Claude | Every screen loads against the real database with no errors |
@@ -471,7 +482,7 @@ Every step passing with no undocumented action required means the deployment is 
 
 ## Local development
 
-Two processes, no Pi hardware needed. The nightly backup never runs locally.
+Two processes, no Pi hardware needed. The scheduled backup never runs locally.
 
 **Backend**
 

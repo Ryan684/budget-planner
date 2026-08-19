@@ -32,8 +32,11 @@ class Settings(BaseSettings):
     backup_log_file: str = ""
 
     # Age in hours beyond which the last successful backup counts as "stale".
-    # 36h = one missed nightly run (24h) plus margin.
-    backup_stale_hours: int = 36
+    # 12h = two missed runs of the 6-hourly backup timer, plus margin. (Was 36h
+    # when the timer was nightly; tightened 2026-08-19 alongside the move of the
+    # database from a USB SSD to the SD card, where the backup is what bounds
+    # data loss rather than a second line of defence.)
+    backup_stale_hours: int = 12
 
 
 settings = Settings()

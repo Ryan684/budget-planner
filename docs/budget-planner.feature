@@ -473,11 +473,17 @@ Feature: Backup
   # history is the version timeline), a local run log, catch-up scheduling, and
   # a tested recovery procedure.
 
-  # --- User Story 1: unattended nightly offsite backup ---
+  # Amended 2026-08-19: the database moved from a USB SSD to the Pi's SD card. The
+  # offsite backup below — not the storage medium — is what bounds data loss, and the
+  # backup interval was tightened from nightly to 6-hourly to shrink the loss window.
+  # The SD card carries a power-loss corruption risk that an SSD would reduce, so the
+  # backup and its recovery procedure are load-bearing rather than a safety net.
 
-  Scenario: Nightly offsite backup completes successfully
+  # --- User Story 1: unattended offsite backup ---
+
+  Scenario: A scheduled offsite backup completes successfully
     Given the scheduled backup has been configured on the Pi with repository access
-    When the nightly schedule fires
+    When the schedule fires
     Then a consistent copy of the database and a freshly generated full-history JSON export are committed and pushed to the private backup repository
     And the run records a timestamped success in the local backup log
 
@@ -488,8 +494,8 @@ Feature: Backup
     And no commit or push is made over the previous good backup
 
   Scenario: The database is stored under a stable filename
-    Given a successful backup last night
-    When the routine runs again tonight with changed budget data
+    Given a successful backup on the previous run
+    When the routine runs again with changed budget data
     Then a new commit is pushed under the same database filename
     And the previous version remains recoverable from the repository history
 
@@ -501,7 +507,7 @@ Feature: Backup
   Scenario: A missed run catches up on next boot
     Given the Pi was powered off at the scheduled backup time
     When the Pi next boots
-    Then the missed backup run executes rather than being skipped until the following night
+    Then the missed backup run executes rather than being skipped until the next scheduled time
 
   # --- User Story 2: reliable recovery from backup ---
 
@@ -531,7 +537,7 @@ Feature: Backup
 Feature: Polish & Hardening
   # Phase 5 — clarified 2026-07-26: an optional backend-verified PIN gate, income
   # and bills editable only in the current *calendar* month (notes and accounts
-  # exempt), graceful retryable error states, a nightly-backup health banner, and
+  # exempt), graceful retryable error states, a backup health banner, and
   # a README complete enough to bring up a fresh Pi.
 
   # --- User Story 1: optional PIN protects the app ---
@@ -647,18 +653,18 @@ Feature: Polish & Hardening
     Then an error is shown
     And the screen reflects the true persisted state with no stale optimistic values
 
-  Scenario: A failed nightly backup raises a dashboard banner
-    Given the most recent nightly backup FAILED
+  Scenario: A failed backup raises a dashboard banner
+    Given the most recent scheduled backup FAILED
     When the dashboard is loaded
     Then a warning banner is shown
 
-  Scenario: A stale nightly backup raises a dashboard banner
+  Scenario: A stale backup raises a dashboard banner
     Given no successful backup has occurred within the staleness threshold
     When the dashboard is loaded
     Then a warning banner is shown
 
-  Scenario: A healthy nightly backup raises no banner
-    Given the most recent nightly backup succeeded within the staleness threshold
+  Scenario: A healthy backup raises no banner
+    Given the most recent scheduled backup succeeded within the staleness threshold
     When the dashboard is loaded
     Then no backup warning banner is shown
 
@@ -673,8 +679,9 @@ Feature: Polish & Hardening
   Scenario: A fresh Pi is brought up from the README alone
     Given a bare Raspberry Pi and the README
     When the setup guide is followed end to end
-    Then the backend, frontend, database on the USB SSD, and backup timer are all running
+    Then the backend, the frontend it serves, the database, and the backup timer are all running
     And no step required knowledge outside the README
+    And no storage hardware beyond the Pi's own SD card was required
 
   Scenario: The end-to-end checklist confirms the deployment
     Given the completed setup

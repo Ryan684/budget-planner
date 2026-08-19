@@ -34,11 +34,11 @@ truth and each feature's `specs/NNN-*/plan.md` + `tasks.md` hold its detailed en
 ### Stack
 - **Backend:** FastAPI (Python)
 - **Frontend:** React + Vite
-- **Database:** SQLite — file on USB SSD in production, local file in development
+- **Database:** SQLite — file on the Pi's SD card (`/home/pi/budget-data/`) in production, local file in development
 - **AI:** Anthropic API (`claude-sonnet-4-6`)
 - **Hosting:** Raspberry Pi 5 (production), localhost (development)
 - **Remote access:** Tailscale (infrastructure only, outside app scope)
-- **Backup:** Nightly systemd timer (with catch-up) → private GitHub repo via SSH
+- **Backup:** 6-hourly systemd timer (with catch-up) → private GitHub repo via SSH
 
 ### Project Structure
 ```
@@ -71,7 +71,7 @@ budget-planner/
 │   ├── vite.config.ts
 │   └── package.json
 ├── scripts/
-│   └── backup.sh            # Nightly backup script (run by a systemd timer)
+│   └── backup.sh            # Backup script (run by a 6-hourly systemd timer)
 ├── docs/
 │   ├── budget-planner-spec.md
 │   ├── budget-planner.feature
@@ -96,7 +96,7 @@ APP_PIN=                     # Leave blank to disable PIN in dev
 
 ### `.env.production` (Pi)
 ```
-DATABASE_URL=/mnt/usbssd/budget.db
+DATABASE_URL=/home/pi/budget-data/budget.db
 ANTHROPIC_API_KEY=sk-...
 APP_PIN=                     # Optional 4-digit PIN
 ```
@@ -145,7 +145,7 @@ matches production so both apps can run side by side — see "Shared Raspberry P
 SQLite file lives at `./data/budget-dev.db` in development. This directory is gitignored. Do not commit the database file.
 
 ### Backup script
-The nightly backup systemd timer is Pi-only. Do not run or test `scripts/backup.sh` in local development.
+The backup systemd timer is Pi-only. Do not run or test `scripts/backup.sh` in local development.
 
 ---
 
@@ -168,7 +168,16 @@ unmatched path. If `dist/` does not exist — the normal case in development, wh
 serves the frontend — nothing is mounted and the API serves alone.
 
 ### Database location
-SQLite file on USB SSD mounted at `/mnt/usbssd/`. Never store the database on the Pi's SD card.
+SQLite file at `/home/pi/budget-data/budget.db` on the Pi's SD card — outside the source
+tree so `git` can never touch it.
+
+This was a USB SSD until 2026-08-19, on the stated grounds that "SD wear-out is the most
+likely way to lose the data". That did not hold: this app writes single-digit MB a month
+against SD endurance measured in terabytes. The genuine risks are power-loss corruption
+and card death, and both take the whole system rather than just the database. What bounds
+the damage is the offsite backup, not the storage medium — so the backup interval was
+tightened to 6-hourly and **its Pi-only end-to-end and recovery gates are load-bearing,
+not optional**. Full reasoning in the README, "Create the data directory".
 
 ### Starting the service
 ```bash
@@ -449,7 +458,7 @@ Use the `/end-session` slash command at the end of each Claude Code session. Thi
 - **No persistent Claude chat history** — conversation resets per session
 - **Claude does not write to previous months** — enforced in system prompt and backend
 - **SQLite only** — no migrations framework needed at this scale; schema changes handled manually with documented migration steps
-- **Google Drive backup skipped in MVP** — nightly GitHub backup is the sole offsite copy; revisit post-MVP
+- **Google Drive backup skipped in MVP** — the 6-hourly GitHub backup is the sole offsite copy; revisit post-MVP
 - **Tailscale is an infrastructure prerequisite** — not configured or managed by the app
 
 ---
@@ -462,8 +471,8 @@ the budget planner", and in this repo's README under "Sharing the Pi". What matt
 
 - **Port 8001 belongs to this app** (dev and production); the dashboard owns 8000. Both
   previously bound `0.0.0.0:8000` — the loser would have crash-looped. Never move back.
-- **The backup timer is 03:30**; the dashboard's deploy is 02:00 and its build can run
-  15–30 minutes. Don't move them closer.
+- **The backup timer runs 6-hourly** at 03:30 / 09:30 / 15:30 / 21:30; the dashboard's
+  deploy is 02:00 and its build can run 15–30 minutes. Don't move a run into that window.
 - **Python 3.14 and Node 22 are shared installs** — one interpreter, one Node, a separate
   `backend/.venv` and `frontend/node_modules` per app. The two apps' dependency *sets*
   differ deliberately (this repo is on React 19 and ESLint 10, the dashboard on 18 and 9);

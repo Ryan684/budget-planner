@@ -8,13 +8,63 @@ Claude Code reads this file at the start of each session to understand current p
 ## Current Status
 
 **Phase:** 🟡 Phase 5 (Polish & Hardening) — **code-complete, all automated gates green; Pi-only manual gate remaining.** Backend 183 pytest, ruff clean, mutmut on the Phase 5 modules (3 documented equivalent survivors in `backup_status.py`; `routers/deps.py` "no tests" verified as a tool false negative). Frontend 204 Vitest, ESLint + `tsc --noEmit` clean, Stryker 85.63% (up from 70.96%). Quickstart Part A executed locally against a live backend — every PIN, read-only, error-state and backup-banner case behaved as specified, and the built bundle contains no PIN. **T043 (quickstart Part B, the fresh-Pi end-to-end) is Pi-only and not yet executed**, and it is still blocked by Phase 4's Pi deployment. Phase 4's Pi-only backup/recovery gates remain outstanding. All feature PRs to date (Phase 2 #4, Phase 3 #5, Phase 4 #7, Phase 5 #8) are **merged to `main`** — no open PRs remain.
-**Also:** the shared-Pi reconciliation (2026-08-17, below) is committed and pushed but **not yet deployed** — it changes this app's port to 8001 and removes the `budget-frontend` service.
+**Also:** the shared-Pi reconciliation (2026-08-17) and the SD-card storage decision (2026-08-19), both below, are committed and pushed but **not yet deployed** — together they change this app's port to 8001, remove the `budget-frontend` service, move the database to `/home/pi/budget-data/` on the SD card, and take the backup timer to 6-hourly.
 **Last updated:** 2026-08-17
-**Next session goal:** Execute the Pi-only manual gates on the Pi, in this order: (1) the shared-Pi migration in `family-dashboard/PI_SETUP.md` Part 19 — the dashboard must be moved to `127.0.0.1`, Python moved to uv and the overnight Chromium stop installed *before* this app is deployed alongside it; (2) Phase 4's backup end-to-end + recovery test (`specs/004-backup-automation/quickstart.md` §3–§4), since Phase 5's backup banner depends on a live `BACKUP_LOG_FILE`; (3) Phase 5's `specs/005-polish-hardening/quickstart.md` Part B — the 11-step fresh-Pi checklist now mirrored in the README's "End-to-end validation checklist", **on port 8001**. Record completion of all three here. No PRs need opening for prior work — all of it is already merged; the shared-Pi branch below is the only outstanding one.
+**Next session goal:** Execute the Pi-only manual gates on the Pi, in this order: (1) the shared-Pi migration in `family-dashboard/PI_SETUP.md` Part 19 — the dashboard must be moved to `127.0.0.1`, Python moved to uv and the overnight Chromium stop installed *before* this app is deployed alongside it; (2) Phase 4's backup end-to-end + recovery test (`specs/004-backup-automation/quickstart.md` §3–§4). **This gate is now load-bearing, not a formality**: with the database on the SD card the offsite backup is the only thing bounding data loss, so an unverified recovery path means an unverified deployment. It also feeds Phase 5's backup banner via a live `BACKUP_LOG_FILE`; (3) Phase 5's `specs/005-polish-hardening/quickstart.md` Part B — the 11-step fresh-Pi checklist now mirrored in the README's "End-to-end validation checklist", **on port 8001**. Record completion of all three here. No PRs need opening for prior work — all of it is already merged; the shared-Pi branch below is the only outstanding one.
 
 ---
 
 ## Phase Completion Log
+
+### 🔧 SD-card storage — USB SSD requirement dropped (2026-08-19)
+
+Branch `claude/budget-dashboard-hardware-compat-trxsp3` (continues the 2026-08-17 entry
+below). Prompted by not wanting to buy the SSD the previous change had added to the
+hardware list.
+
+**The requirement did not hold up.** README said "the database must never live on the SD
+card — SD wear-out is the most likely way to lose the data". At this app's write volume —
+a few dozen bills and income rows a month, occasional edits, an append-only amendments log,
+so single-digit MB — against SD endurance measured in terabytes, wear is several orders of
+magnitude from being the binding risk. The genuine SD risks are **power-loss corruption**
+and **outright card death**, and both take the whole system rather than just the database,
+so an SSD would not have saved a reflash-and-redeploy either.
+
+What actually bounds the damage is the Phase 4 offsite backup. The SSD lowered the
+*probability* of loss; the backup caps the *impact* of it.
+
+**What changed:**
+
+- Database and backup-repo clone move from `/mnt/usbssd/` to **`/home/pi/budget-data/`** on
+  the SD card — outside the source tree so `git` cannot touch them.
+- `budget-backend.service` drops `Requires=mnt-usbssd.mount` / `After=…mnt-usbssd.mount`.
+  Left in place it would have refused to start with no such mount.
+- Backup timer **03:30 nightly → 6-hourly** (03:30 / 09:30 / 15:30 / 21:30). The interval
+  *is* the loss window, and shrinking it is nearly free: `backup.sh` already exits SUCCESS
+  without a commit when nothing changed, so quiet-day runs are no-ops. Hours chosen to keep
+  every run clear of the dashboard's 02:00 deploy.
+- `BACKUP_STALE_HOURS` **36 → 12** (`backend/config.py` default and `.env.production`) —
+  two missed 6-hourly runs plus margin, matching what 36h meant for a nightly timer.
+- `docs/budget-planner.feature` — fresh-Pi scenario no longer asserts the SSD and now
+  asserts no storage hardware beyond the SD card is needed; Backup scenarios reworded to be
+  schedule-agnostic ("scheduled"/"the previous run" rather than "nightly"/"tonight").
+- `.specify/memory/constitution.md` → **v1.4.0** with a new Persistence-medium constraint,
+  mirrored in CLAUDE.md. Principle V is unchanged in substance.
+- README, CLAUDE.md, spec, `specs/005-polish-hardening/quickstart.md`, and both
+  `family-dashboard` docs (SSD out of the BOM, total back to ~£211–236).
+
+**The trade, recorded explicitly:** the backup is now load-bearing rather than a safety
+net. Worst case is losing changes made since the last successful run — for a monthly budget
+planner, usually nothing. But **Phase 4's Pi-only backup and recovery gates are no longer
+optional**, and the staleness banner should be treated as an incident rather than noise.
+
+**Verification:** backend 192 pytest, ruff clean; frontend 204 Vitest, ESLint and
+`tsc --noEmit` clean. No new code — this is configuration and documentation, so no new
+tests and no mutation-scope change. The `BACKUP_STALE_HOURS` default change is covered by
+the existing `test_backup_status.py`, which sets the threshold explicitly per case.
+
+**If you change your mind:** an old SSD in a USB caddy needs only `DATABASE_URL` and
+`BACKUP_REPO_DIR` repointed — nothing else in the deployment assumes the medium.
 
 ### 🔧 Shared-Pi reconciliation — budget planner + family dashboard on one Pi (2026-08-17)
 
@@ -408,6 +458,7 @@ the Pi runs. **Action for deploy/CI:** run `pip install -e ".[dev]" && pytest` o
 | Divergence | Spec said | We did | Why |
 |---|---|---|---|
 | Backend test framework | "Vitest for Phase 1 calc" | **pytest** | The calc lives in Python; Vitest is frontend-only (Phase 2). Spec error. |
+| Storage medium (2026-08-19) | Spec, README and CLAUDE.md required the SQLite file on a **USB SSD**: "never store the database on the Pi's SD card" | Database and backup clone on the **SD card** at `/home/pi/budget-data/`; backup timer tightened nightly → 6-hourly; `BACKUP_STALE_HOURS` 36 → 12 | The stated reason (SD wear-out) does not apply at single-digit MB a month against terabyte-scale endurance. The real risks — power-loss corruption, card death — take the whole system regardless of medium, and the offsite backup is what bounds the loss. Trade accepted knowingly: the backup's Pi-only gates become load-bearing. Constitution v1.4.0. |
 | Backend port (2026-08-17) | Spec and CLAUDE.md used `:8000` throughout | **`:8001`**, dev and production | The Pi is shared with the family dashboard, which was deployed first and owns 8000. Both binding `0.0.0.0:8000` meant the second service to start would crash-loop. Dev matches production so the two apps can also run side by side on a laptop. |
 | Frontend serving (2026-08-17) | Spec Phase 0 and the README ran the built `dist/` behind a separate static server (`python3 -m http.server 5173`) | **FastAPI serves `dist/`** from the same process and port (`mount_frontend`); `budget-frontend.service` deleted | CLAUDE.md already allowed either. The static server was also broken: the bundle requests a relative `/api` (`frontend/src/api/client.ts`), which a static file server cannot answer, and the documented `API_BASE_URL` lacked the `VITE_` prefix Vite requires, so it was never read. Same origin fixes it, drops a port, a systemd unit and a process on a 4GB Pi, and needs no CORS config. `API_BASE_URL` is removed from the env. |
 | Backup timer (2026-08-17) | Phase 4 set `OnCalendar=*-*-* 02:30:00` | **03:30** | The dashboard's nightly deploy fires at 02:00 and its `npm ci` + `vite build` can run 15–30 minutes on this hardware; 30 minutes was not enough clearance. |

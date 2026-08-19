@@ -36,7 +36,7 @@ A private, self-hosted monthly budget planning app running on a Raspberry Pi 5. 
 |---|---|
 | Backend | FastAPI (Python) |
 | Frontend | React + Vite |
-| Database | SQLite (file on USB SSD attached to Pi) |
+| Database | SQLite (file on the Pi's SD card, `/home/pi/budget-data/`) |
 | AI | Anthropic API (claude-sonnet-4-6) |
 | Hosting | Raspberry Pi 5, served on local network |
 | Remote access | Tailscale (infrastructure prerequisite, outside app scope) |
@@ -301,7 +301,7 @@ To restore: clone the backup repo, copy the DB file back to the data directory, 
 ## Phased Implementation Plan
 
 ### Phase 0 — Infrastructure
-- Pi setup: USB SSD mounted, Node + Python + SQLite installed
+- Pi setup: data directory created, Node + Python + SQLite installed
 - Repo initialised, README with setup instructions
 - FastAPI skeleton with health check endpoint
 - React + Vite scaffold, confirms it loads on phone browser

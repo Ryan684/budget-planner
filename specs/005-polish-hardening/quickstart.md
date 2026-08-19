@@ -65,8 +65,10 @@ Goal: from a bare Raspberry Pi 5 and the README alone, reach a fully working, ba
 accessible deployment. Requires Phase 4 to be deployed (backup timer). Record completion in
 `docs/progress-log.md`.
 
-1. **Prerequisites** — USB SSD mounted at `/mnt/usbssd`; Python 3.14, Node, SQLite installed per
-   README. DB path `DATABASE_URL=/mnt/usbssd/budget.db`.
+1. **Prerequisites** — data directory `/home/pi/budget-data` present and writable by `pi`;
+   Python 3.14, Node, SQLite installed per README. DB path
+   `DATABASE_URL=/home/pi/budget-data/budget.db`. (The USB SSD requirement was dropped on
+   2026-08-19 — see the README's "Create the data directory".)
 2. **Config** — `.env.production` set: `DATABASE_URL`, `ANTHROPIC_API_KEY`, `APP_PIN`,
    `BACKUP_REPO_DIR`, `BACKUP_LOG_FILE`, `BACKUP_LOCK_FILE`, `BACKUP_STALE_HOURS`.
    (`API_BASE_URL` was removed on 2026-08-17 — the backend serves the frontend, so the app

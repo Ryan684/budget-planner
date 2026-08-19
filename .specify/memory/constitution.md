@@ -58,9 +58,14 @@ fresh from the API after any write — never from stale client data.
   resolution of the runtime deps and is what the Pi installs from, so a deploy gets the exact
   versions that were tested; regenerate it with uv whenever dependencies change, never by hand.
 - **Shared hardware:** production is one 4GB Raspberry Pi 5 shared with the family dashboard.
-  This app owns port 8001 and the 03:30 backup timer; the dashboard owns 8000 and the 02:00
-  deploy timer. Python 3.14 and Node 22 are single shared installs with a per-app venv and
-  `node_modules`. The backend serves its own built frontend — one process, one port.
+  This app owns port 8001 and the 6-hourly backup timer (03:30/09:30/15:30/21:30); the
+  dashboard owns 8000 and the 02:00 deploy timer. Python 3.14 and Node 22 are single shared
+  installs with a per-app venv and `node_modules`. The backend serves its own built frontend
+  — one process, one port.
+- **Persistence medium:** the database lives on the Pi's SD card
+  (`/home/pi/budget-data/budget.db`), not dedicated storage. The offsite backup — not the
+  medium — is what bounds data loss, which makes its Pi-only end-to-end and recovery gates
+  load-bearing rather than optional.
 - **Persistence:** SQLite only — no migrations framework; schema changes are manual and
   documented. DB never committed; secrets and `.env` files never committed.
 - **Calculations:** `total_income`, `total_bills`, `monthly_surplus = income − bills`,
@@ -92,7 +97,18 @@ gates before merge to `main`. The phased plan (0: infra, 1: data layer, 2: UI, 3
 artifacts live under `specs/NNN-*/`; `docs/progress-log.md` is the authoritative session-handoff
 record.
 
-**Version**: 1.3.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-08-17
+**Version**: 1.4.0 | **Ratified**: 2026-05-30 | **Last Amended**: 2026-08-19
+
+> **1.4.0 (2026-08-19)** — Technical Constraints: the database moves from a USB SSD to the Pi's
+> SD card, and the backup timer from nightly to 6-hourly. The SSD requirement rested on SD
+> "wear-out", which does not apply at this write volume (single-digit MB a month against
+> endurance measured in terabytes); the genuine risks — power-loss corruption and card death —
+> take the whole system regardless of where the database sits. Principle V is unchanged in
+> substance, but the offsite backup is now explicitly the mechanism that bounds data loss, so
+> its Pi-only end-to-end and recovery gates are load-bearing rather than optional, and
+> `BACKUP_STALE_HOURS` drops from 36 to 12 to match the tighter interval. Rationale and the
+> superseded claim are recorded in the README. Mirrored in `CLAUDE.md`.
+
 
 > **1.3.0 (2026-08-17)** — Principle II: mutation testing is scoped to development machines and
 > MUST NOT run on the Raspberry Pi; it stays blocking for merge to `main` but no longer blocks a
