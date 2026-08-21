@@ -487,3 +487,51 @@ Revisit if `main.py` ever grows real decision logic.
 **Note for whoever runs mutation testing next:** it must not run on the Raspberry Pi (4GB,
 shared with the family dashboard). `scripts/assert-not-pi.sh` now guards
 `npm run test:mutation` and should prefix `mutmut run`. See CLAUDE.md, build order.
+
+---
+
+# Settings resolve `.env.local`/`.env` from the repo root, not CWD (2026-08-20)
+
+**No mutation run performed; `config.py` remains outside `paths_to_mutate` deliberately.**
+
+## The bug
+
+`config.py`'s pydantic-settings used relative paths — `env_file=(".env.local", ".env")`.
+pydantic-settings resolves a relative `env_file` against the process's **current working
+directory**, with no upward search (unlike `python-dotenv`'s `load_dotenv()`, which
+family-dashboard relies on and which does walk up parent directories). `uvicorn` always
+runs with `backend/` as its CWD — locally (README: `cd backend && uvicorn ...`) and on the
+Pi (the systemd unit's `WorkingDirectory=`) — so a `.env.local` placed "in the repo root",
+exactly as the README instructed, was silently never read. Every setting fell back to its
+class default with no error: `ANTHROPIC_API_KEY` and `APP_PIN` both went quietly blank.
+
+Confirmed empirically before fixing: a `Settings()` instantiated with CWD=`backend/` and a
+populated `.env.local` one level up returned `''` for every value that file set.
+
+Production was unaffected by this specific bug: `EnvironmentFile=` in the systemd unit is a
+systemd mechanism that injects real process environment variables before the process
+starts, bypassing pydantic's file search entirely — `.env.production` was never in the
+pydantic `env_file` tuple in the first place, precisely because it doesn't need to be.
+
+## The fix
+
+`_REPO_ROOT = Path(__file__).resolve().parent.parent`, computed once at import from
+`config.py`'s own location, used to build absolute paths for both tuple entries. Absolute
+paths are immune to CWD entirely, so the documented "in the repo root" placement is now
+actually true rather than coincidentally-looking-right-but-silently-broken.
+
+## Why `config.py` is not added to `paths_to_mutate`
+
+The new logic is a single computed value with no conditionals — `.parent.parent` is the
+only thing a mutant could meaningfully touch (e.g. mutating it to `.parent`, landing on
+`backend/` instead of the repo root). That exact case is asserted directly:
+
+| What a mutant would break | Test |
+|---|---|
+| `_REPO_ROOT` resolves to the wrong directory | `test_repo_root_is_one_level_above_backend` |
+| `.env.local` at the repo root isn't actually loaded | `test_env_local_at_repo_root_is_loaded_regardless_of_cwd` |
+| No `.env.local` present crashes instead of defaulting | `test_missing_env_local_falls_back_to_defaults` |
+
+Adding the rest of `config.py` (the fifteen declarative `Settings` field defaults) would
+generate mutants with no logic to get wrong — the same reasoning already applied to
+`main.py`'s router wiring above. Revisit if `config.py` ever grows real conditional logic.
