@@ -16,6 +16,45 @@ Claude Code reads this file at the start of each session to understand current p
 
 ## Phase Completion Log
 
+### 🐛 `.env.local`/`.env.production` were never actually read from the repo root (2026-08-20)
+
+Branch `claude/budget-dashboard-hardware-compat-trxsp3` (continues the two entries below).
+Found while the user was mid-way through the shared-Pi migration on the real hardware, at
+`family-dashboard/PI_SETUP.md` Part 19.6 — they'd reached "Configure the environment" and
+the absolute path there (`/home/pi/projects/budget-planner/.env.production`, repo root)
+looked wrong sitting one level above every other command in that section (all run from
+`backend/`).
+
+**Confirmed as a real bug, not a doc-formatting complaint.** `backend/config.py` used
+relative pydantic-settings paths — `env_file=(".env.local", ".env")`. pydantic-settings
+resolves a relative `env_file` against the process's CWD with **no upward search**, unlike
+`python-dotenv`'s `load_dotenv()` (which family-dashboard uses and which does walk up).
+`uvicorn` always runs from `backend/` — locally and via the systemd unit's
+`WorkingDirectory=` — so a `.env.local` "in the repo root", exactly as documented, was
+silently never read; every setting fell back to its class default with no error. Reproduced
+empirically before fixing (`ANTHROPIC_API_KEY`/`APP_PIN` both came back `''`).
+
+**Production on the Pi was not actually broken by this** — `EnvironmentFile=` in the
+systemd unit is a systemd mechanism, injecting real env vars before the process starts,
+independent of pydantic's own file search. `.env.production` was never in the pydantic
+`env_file` tuple for exactly this reason. The bug only bit local development.
+
+**Fix:** `config.py` now computes `_REPO_ROOT = Path(__file__).resolve().parent.parent`
+once at import and builds absolute paths from it, immune to CWD. No README/CLAUDE.md
+change needed — the documented "repo root" placement is now actually true rather than
+silently ignored. Test-first: `backend/tests/test_config.py` (3 tests) reproduces the bug
+against the real repo root (temporarily writing and always removing a real `.env.local`
+there, since `_REPO_ROOT` is fixed at config.py's own file location and can't be faked with
+a tmp_path fixture), then confirms the fix. No Gherkin scenario added — this restores
+already-documented setup behaviour rather than introducing anything new to specify.
+
+No mutation run: `config.py`'s new logic is one computed value with no branches, and the
+one thing a mutant could touch (`.parent.parent` → `.parent`) is asserted directly by all
+three new tests. Recorded with the branch-coverage mapping in `MUTANTS.md`.
+
+**Verification:** backend 195 pytest (192 + 3 new), ruff `check` + `format --check` clean.
+Frontend untouched by this change.
+
 ### 🔧 SD-card storage — USB SSD requirement dropped (2026-08-19)
 
 Branch `claude/budget-dashboard-hardware-compat-trxsp3` (continues the 2026-08-17 entry

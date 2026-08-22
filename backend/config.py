@@ -4,14 +4,27 @@ Environment-specific values (database location, optional PIN) are never
 hardcoded — they come from the environment via pydantic-settings.
 """
 
+from pathlib import Path
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+# One level above backend/ — where the README and CLAUDE.md document .env.local
+# and .env.production as living. Resolved to an absolute path deliberately:
+# pydantic-settings treats a relative env_file as relative to the process's
+# current working directory with no upward search (unlike python-dotenv's
+# load_dotenv(), which family-dashboard relies on and which does walk up). uvicorn
+# always runs with backend/ as its CWD — locally (`cd backend && uvicorn ...`) and
+# on the Pi (the systemd unit's WorkingDirectory=) — so a bare ".env.local" here
+# would silently never be found and every setting would fall back to its default
+# with no error. Confirmed and regression-tested in tests/test_config.py.
+_REPO_ROOT = Path(__file__).resolve().parent.parent
 
 
 class Settings(BaseSettings):
     """Runtime settings for the backend."""
 
     model_config = SettingsConfigDict(
-        env_file=(".env.local", ".env"),
+        env_file=(_REPO_ROOT / ".env.local", _REPO_ROOT / ".env"),
         env_file_encoding="utf-8",
         extra="ignore",
     )
